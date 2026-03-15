@@ -80,7 +80,6 @@ let combinedTestFlow = Flow<TestAction>.combine(
 @Suite("FeatureFlow Core Tests")
 struct FeatureFlowTests {
 
-    @MainActor
     @Test("Flow.combine executes multiple flows in sequence")
     func flowCombine() {
         let flowA = Flow<TestAction> { state, _ in
@@ -97,14 +96,12 @@ struct FeatureFlowTests {
         #expect(result.state.count == 6)
     }
 
-    @MainActor
     @Test("Flow.pullback correctly maps child logic to parent domain")
     func flowPullback() {
         let result = combinedTestFlow.run(TestState(), .childAction(.increment))
         #expect(result.state.child.value == 1)
     }
 
-    @MainActor
     @Test("Store updates state and notifies observers")
     func storeStateUpdates() async {
         let store = Store(initialState: TestState(), flow: baseTestFlow)
@@ -116,7 +113,6 @@ struct FeatureFlowTests {
         #expect(store.state.text == "Hello")
     }
 
-    @MainActor
     @Test("Store.scope creates a child store that synchronizes with the parent")
     func storeScoping() async throws {
         let parentStore = Store(initialState: TestState(), flow: combinedTestFlow)
@@ -139,16 +135,18 @@ struct FeatureFlowTests {
 
     @MainActor
     @Test("Store.binding creates a working SwiftUI binding")
-    func storeBinding() {
-        let store = Store(initialState: TestState(), flow: baseTestFlow)
+    func storeBinding() async {
+        let store = ViewStore(initialState: TestState(), flow: baseTestFlow)
+        var stateUpdateIterator = store.objectWillChange.values.makeAsyncIterator()
+        
         let binding = store.binding(\.text, to: { .setText($0) })
         
         binding.wrappedValue = "New Value"
         
+        await stateUpdateIterator.next()
         #expect(store.state.text == "New Value")
     }
 
-    @MainActor
     @Test("EffectPolicy.cancelPrevious cancels existing tasks with same ID")
     func effectCancellation() async throws {
         let store = Store(initialState: TestState(), flow: baseTestFlow)
@@ -167,7 +165,6 @@ struct FeatureFlowTests {
         #expect(store.state.count == 2)
     }
 
-    @MainActor
     @Test("EffectPolicy.runIfMissing ignores new tasks if ID is active")
     func effectThrottling() async throws {
         let store = Store(initialState: TestState(), flow: baseTestFlow)

@@ -2,7 +2,7 @@ import SwiftUI
 import FeatureFlow
 
 struct SettingsView: View {
-    @ObservedObject var store: Store<SettingsAction>
+    @ObservedObject var store: ViewStore<SettingsAction>
     
     var body: some View {
         Section("Preferences") {

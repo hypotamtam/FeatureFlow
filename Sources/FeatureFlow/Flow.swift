@@ -11,10 +11,9 @@ public struct Flow<Action: FeatureFlow.Action>: Sendable {
         }
     }
     
-    // Mark the run closure as @MainActor
-    public let run: @MainActor @Sendable (Action.State, Action) -> Result
+    public let run: @Sendable (Action.State, Action) -> Result
     
-    public init(run: @escaping @MainActor @Sendable (Action.State, Action) -> Result) {
+    public init(run: @escaping @Sendable (Action.State, Action) -> Result) {
         self.run = run
     }
 }

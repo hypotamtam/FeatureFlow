@@ -11,7 +11,6 @@ public final class CounterResetService: CounterResetServiceProtocol {
     
     public func start() {
         stop()
-        // The Task inherits the @MainActor context here
         task = Task {
             while !Task.isCancelled {
                 let delay = Double.random(in: 3...10)

@@ -6,9 +6,6 @@ public protocol UserServiceProtocol: Sendable {
     func fetchUser() async throws -> String
 }
 
-// Mark the service protocol as @MainActor. 
-// Since it inherits from Sendable, any @MainActor class or actor will conform.
-@MainActor
 public protocol CounterResetServiceProtocol: Sendable {
     func start()
     func stop()

@@ -20,7 +20,6 @@ enum CounterAction: Action {
     case startMonitoring
 }
 
-@MainActor
 let counterFlow = Flow<CounterAction> { state, action in
     switch action {
     case .increment:
@@ -48,8 +47,12 @@ let counterFlow = Flow<CounterAction> { state, action in
         )
         
     case .startMonitoring:
-        Current.counterResetService.start()
-        return .result(state, effect: .waitForResetSignal())
+        return .result(state, effect: Effect {
+            await MainActor.run {
+                Current.counterResetService.start()
+            }
+            return nil
+        })
     }
 }
 

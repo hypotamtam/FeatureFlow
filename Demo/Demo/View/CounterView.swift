@@ -2,7 +2,7 @@ import SwiftUI
 import FeatureFlow
 
 struct CounterView: View {
-    @ObservedObject var store: Store<CounterAction>
+    @ObservedObject var store: ViewStore<CounterAction>
     
     @SwiftUI.State private var didStart = false
     

@@ -62,15 +62,18 @@ struct CounterTests {
 
     @MainActor
     @Test("Starting monitoring starts the service and begins waiting for signals")
-    func startMonitoring() {
+    func startMonitoring() async {
         let mock = MockCounterResetService()
         Current.counterResetService = mock
         
         let result = counterFlow.run(CounterState(), .startMonitoring)
         
-        // Because the test and the mock are both @MainActor, 
-        // this access is synchronous and safe.
-        #expect(mock.startCalled == true)
         #expect(result.effects.count == 1)
+        let _ = await confirmation { counterServiceStared in
+            let _ = await result.effects.first?.operation()
+            counterServiceStared.confirm()
+        }
+        
+        #expect(mock.startCalled == true)
     }
 }
