@@ -20,12 +20,14 @@ struct AppTests {
         #expect(state.isGlobalLoading == false)
     }
 
+    @MainActor
     @Test("The app flow updates the title correctly")
     func updateTitle() {
         let result = rootFlow.run(AppState(), .updateTitle("New Title"))
         #expect(result.state.appTitle == "New Title")
     }
 
+    @MainActor
     @Test("The app flow correctly pullbacks counter actions")
     func pullbackCounterAction() {
         let initialState = AppState()
@@ -34,6 +36,7 @@ struct AppTests {
         #expect(result.state.counter.count == 1)
     }
 
+    @MainActor
     @Test("The app flow correctly pullbacks user actions")
     func pullbackUserAction() {
         let initialState = AppState()

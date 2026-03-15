@@ -153,7 +153,7 @@
 			mainGroup = 3EFA82C72F62AA6500C6AA04;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				3EFA83062F62AB2B00C6AA04 /* XCLocalSwiftPackageReference "../../FeatureFlow" */,
+				3E16829E2F652BEF00F4A594 /* XCLocalSwiftPackageReference "../../FeatureFlow" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 3EFA82D12F62AA6500C6AA04 /* Products */;
@@ -360,7 +360,7 @@
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				XROS_DEPLOYMENT_TARGET = 26.2;
 			};
@@ -403,7 +403,7 @@
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				XROS_DEPLOYMENT_TARGET = 26.2;
 			};
@@ -427,7 +427,7 @@
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2,7";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Demo.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Demo";
 				XROS_DEPLOYMENT_TARGET = 26.2;
@@ -452,7 +452,7 @@
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2,7";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Demo.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Demo";
 				XROS_DEPLOYMENT_TARGET = 26.2;
@@ -492,7 +492,7 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		3EFA83062F62AB2B00C6AA04 /* XCLocalSwiftPackageReference "../../FeatureFlow" */ = {
+		3E16829E2F652BEF00F4A594 /* XCLocalSwiftPackageReference "../../FeatureFlow" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = ../../FeatureFlow;
 		};

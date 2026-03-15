@@ -3,28 +3,38 @@ import Foundation
 @testable import FeatureFlow
 @testable import Demo
 
-class MockCounterResetService: CounterResetServiceProtocol {
+@MainActor
+final class MockCounterResetService: CounterResetServiceProtocol {
     var startCalled = false
     var stopCalled = false
-    func start() { startCalled = true }
-    func stop() { stopCalled = true }
+    
+    func start() { 
+        startCalled = true 
+    }
+    
+    func stop() { 
+        stopCalled = true 
+    }
 }
 
 @Suite("Counter Domain Tests")
 struct CounterTests {
     
+    @MainActor
     @Test("Incrementing the counter increases the count by 1")
     func increment() {
         let state = counterFlow.run(CounterState(), .increment).state
         #expect(state.count == 1)
     }
 
+    @MainActor
     @Test("Decrementing the counter decreases the count by 1")
     func decrement() {
         let state = counterFlow.run(CounterState(), .decrement).state
         #expect(state.count == -1)
     }
 
+    @MainActor
     @Test("A delayed increment action should set isProcessing to true")
     func delayedStartsLoading() {
         let state = counterFlow.run(CounterState(), .delayedIncrement).state
@@ -40,6 +50,7 @@ struct CounterTests {
         #expect(nextAction == .increment)
     }
 
+    @MainActor
     @Test("Resetting the counter sets count to 0 and waits for a new reset signal")
     func reset() {
         let state = CounterState(count: 10)
@@ -49,6 +60,7 @@ struct CounterTests {
         #expect(result.effects.count == 1)
     }
 
+    @MainActor
     @Test("Starting monitoring starts the service and begins waiting for signals")
     func startMonitoring() {
         let mock = MockCounterResetService()
@@ -56,6 +68,8 @@ struct CounterTests {
         
         let result = counterFlow.run(CounterState(), .startMonitoring)
         
+        // Because the test and the mock are both @MainActor, 
+        // this access is synchronous and safe.
         #expect(mock.startCalled == true)
         #expect(result.effects.count == 1)
     }

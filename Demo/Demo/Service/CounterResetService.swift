@@ -1,6 +1,7 @@
 import Foundation
 
 /// A global service that emits reset signals at random intervals.
+@MainActor
 public final class CounterResetService: CounterResetServiceProtocol {
     public static let shared = CounterResetService()
     
@@ -10,6 +11,7 @@ public final class CounterResetService: CounterResetServiceProtocol {
     
     public func start() {
         stop()
+        // The Task inherits the @MainActor context here
         task = Task {
             while !Task.isCancelled {
                 let delay = Double.random(in: 3...10)

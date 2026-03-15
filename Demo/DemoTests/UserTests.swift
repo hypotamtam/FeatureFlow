@@ -22,6 +22,7 @@ struct UserTests {
         #expect(state.error == nil)
     }
 
+    @MainActor
     @Test("Initiating a user fetch request should set isLoading to true")
     func fetchRequest() {
         var state = UserState()
@@ -34,6 +35,7 @@ struct UserTests {
         #expect(result.effects.count == 1)
     }
 
+    @MainActor
     @Test("A successful user fetch should update the name")
     func fetchSuccess() {
         var state = UserState()
@@ -45,6 +47,7 @@ struct UserTests {
         #expect(result.state.isLoading == false)
     }
 
+    @MainActor
     @Test("A failed user fetch should capture the error message")
     func fetchFailure() {
         var state = UserState()
@@ -57,8 +60,8 @@ struct UserTests {
         #expect(result.state.isLoading == false)
     }
 
-    @Test("The fetch effect should return fetchSuccess when the service call succeeds")
     @MainActor
+    @Test("The fetch effect should return fetchSuccess when the service call succeeds")
     func fetchEffectSuccess() async throws {
         let expectedName = "Mock Alice"
         Current.userService = MockUserService(result: .success(expectedName))

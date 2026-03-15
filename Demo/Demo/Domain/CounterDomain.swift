@@ -20,6 +20,7 @@ enum CounterAction: Action {
     case startMonitoring
 }
 
+@MainActor
 let counterFlow = Flow<CounterAction> { state, action in
     switch action {
     case .increment:
@@ -53,7 +54,7 @@ let counterFlow = Flow<CounterAction> { state, action in
 }
 
 extension Effect where Action == CounterAction {
-    static func waitForResetSignal() -> Effect<CounterAction> {
+    nonisolated static func waitForResetSignal() -> Effect<CounterAction> {
         Effect {
             let _ = await NotificationCenter.default
                 .notifications(named: .resetCounterSignal)

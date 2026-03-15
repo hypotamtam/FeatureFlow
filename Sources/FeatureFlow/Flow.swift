@@ -1,7 +1,7 @@
 import Foundation
 
-public struct Flow<Action: FeatureFlow.Action> {
-    public struct Result {
+public struct Flow<Action: FeatureFlow.Action>: Sendable {
+    public struct Result: Sendable {
         let state: Action.State
         let effects: [Effect<Action>]
         
@@ -11,9 +11,10 @@ public struct Flow<Action: FeatureFlow.Action> {
         }
     }
     
-    public let run: (Action.State, Action) -> Result
+    // Mark the run closure as @MainActor
+    public let run: @MainActor @Sendable (Action.State, Action) -> Result
     
-    public init(run: @escaping (Action.State, Action) -> Result) {
+    public init(run: @escaping @MainActor @Sendable (Action.State, Action) -> Result) {
         self.run = run
     }
 }
@@ -34,9 +35,9 @@ extension Flow.Result {
 
 public extension Flow {
     func pullback<ParentAction: FeatureFlow.Action>(
-        childPath: WritableKeyPath<ParentAction.State, Action.State>,
-        toChildAction: @escaping (ParentAction) -> Action?,
-        toParentAction: @escaping (Action) -> ParentAction
+        childPath: WritableKeyPath<ParentAction.State, Action.State> & Sendable,
+        toChildAction: @escaping @Sendable (ParentAction) -> Action?,
+        toParentAction: @escaping @Sendable (Action) -> ParentAction
     ) -> Flow<ParentAction> {
         Flow<ParentAction> { parentState, parentAction in
             guard let childAction = toChildAction(parentAction) else {

@@ -5,6 +5,7 @@ import Testing
 @Suite("Settings Domain Tests")
 struct SettingsTests {
     
+    @MainActor
     @Test("Toggling dark mode should flip the isDarkMode boolean")
     func toggleDarkMode() {
         let initialState = SettingsState(isDarkMode: false)
@@ -15,6 +16,7 @@ struct SettingsTests {
         #expect(secondState.isDarkMode == false)
     }
 
+    @MainActor
     @Test("Toggling notifications should flip the notificationsEnabled boolean")
     func toggleNotifications() {
         let initialState = SettingsState(notificationsEnabled: true)

@@ -1,6 +1,6 @@
 import Foundation
 
-public protocol State {}
+public protocol State: Sendable {}
 
 public extension State {
     func with(_ updates: (inout Self) -> Void) -> Self {
@@ -10,6 +10,6 @@ public extension State {
     }
 }
 
-public protocol Action {
+public protocol Action: Sendable {
     associatedtype State: FeatureFlow.State
 }
