@@ -46,7 +46,7 @@ enum CounterAction: Action {
 
 A Flow defines how the state changes in response to actions and what side effects (if any) should be triggered.
 
-```
+```swift
 let counterFlow = Flow<CounterAction> { state, action in
     switch action {
     case .increment:
@@ -68,7 +68,7 @@ let counterFlow = Flow<CounterAction> { state, action in
 
 FeatureFlow makes it easy to handle complex scenarios like debouncing search inputs or throttling button taps using Effect helpers.
 
-```
+```swift
 case .updateSearch(let query):
     return .result(
         state.with { $0.query = query },
@@ -83,7 +83,7 @@ case .updateSearch(let query):
 
 You can scale your app by nesting child features into a parent "Root" flow using pullback and combine.
 
-```
+```swift
 let rootFlow = Flow<AppAction>.combine(
     counterFlow.pullback(
         childPath: \.counter,
