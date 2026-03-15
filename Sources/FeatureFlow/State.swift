@@ -1,6 +1,6 @@
 import Foundation
 
-public protocol State: Sendable {}
+public protocol State: Equatable, Sendable {}
 
 public extension State {
     func with(_ updates: (inout Self) -> Void) -> Self {

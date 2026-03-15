@@ -55,6 +55,13 @@ public final class Store<Action: FeatureFlow.Action>: @unchecked Sendable {
         lock.lock()
         _state = newState
         lock.unlock()
+        sendUpdate(newState)
+    }
+    
+    private func sendUpdate(_ newState: Action.State) {
+        guard stateSubject.value != newState else {
+            return
+        }
         stateSubject.send(newState)
     }
     
@@ -68,7 +75,7 @@ public final class Store<Action: FeatureFlow.Action>: @unchecked Sendable {
             
             // Notify observers after unlocking to avoid re-entrancy deadlocks 
             // if a subscriber calls 'send' synchronously.
-            stateSubject.send(result.state)
+            sendUpdate(result.state)
             
             for effect in effects {
                 execute(effect)

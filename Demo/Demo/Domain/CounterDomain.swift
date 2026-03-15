@@ -51,7 +51,7 @@ let counterFlow = Flow<CounterAction> { state, action in
             await MainActor.run {
                 Current.counterResetService.start()
             }
-            return nil
+            return .reset
         })
     }
 }
