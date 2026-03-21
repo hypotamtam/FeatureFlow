@@ -38,3 +38,4 @@ The project includes a `Demo` application located in the `Demo/` directory.
 *   **Unidirectional Data Flow:** State should never be mutated directly outside of a `Flow`. Always dispatch `Action`s to the `Store`.
 *   **Pure Functions:** `Flow` logic must be pure and predictable, making it easy to unit test. Side effects should always be wrapped in an `Effect`.
 *   **Modularity:** Break down large features into smaller domains (State, Action, Flow) and use `pullback` to compose them into parent features.
+    **Robustness:** Any logic update must be cover by unit tests.

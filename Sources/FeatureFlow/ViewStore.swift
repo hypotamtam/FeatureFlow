@@ -43,6 +43,7 @@ public final class ViewStore<State: FeatureFlow.State, Action: Sendable>: Observ
         
         store.statePublisher
             .dropFirst()
+            .removeDuplicates()
             .receive(on: DispatchQueue.main) 
             .assign(to: &$state)
     }
