@@ -41,7 +41,7 @@ public final class ViewStore<Action: FeatureFlow.Action>: ObservableObject {
         to action: @escaping @Sendable (Value) -> Action
     ) -> Binding<Value> {
         Binding(
-            get: { self.state[keyPath: keyPath] },
+            get: { self.store.state[keyPath: keyPath] },
             set: { self.send(action($0)) }
         )
     }
