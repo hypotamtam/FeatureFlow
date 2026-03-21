@@ -37,4 +37,20 @@ struct StoreTests {
         #expect(parentStore.state.child.value == 1)
         #expect(childStore.state.value == 1)
     }
+
+    @Test("Store handles concurrent sends correctly")
+    func storeConcurrentSends() async {
+        let store = Store(initialState: TestState(), flow: baseTestFlow)
+        let count = 1000
+        
+        await withTaskGroup(of: Void.self) { group in
+            for _ in 0..<count {
+                group.addTask {
+                    store.send(.increment(1))
+                }
+            }
+        }
+        
+        #expect(store.state.count == count)
+    }
 }

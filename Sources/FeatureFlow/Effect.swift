@@ -7,8 +7,8 @@ public enum EffectPolicy: Sendable {
     case runIfMissing
 }
 
-public struct Effect<Action: Sendable>: Sendable {
-    public typealias ID = String
+public struct Effect<Action: Sendable>: @unchecked Sendable {
+    public typealias ID = AnyHashable
     
     public let id: ID?
     public let policy: EffectPolicy
@@ -45,7 +45,7 @@ public struct Effect<Action: Sendable>: Sendable {
     ) -> Effect {
         Effect(id: id, policy: .cancelPrevious) {
             do {
-                try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+                try await Task.sleep(nanoseconds: UInt64(max(0, seconds) * 1_000_000_000))
                 return await operation()
             } catch {
                 // Task was cancelled during sleep

@@ -1,13 +1,13 @@
 import Foundation
 import Combine
 import SwiftUI
-import os
+
 
 
 public final class Store<Action: FeatureFlow.Action>: @unchecked Sendable {
     
     private let stateSubject: CurrentValueSubject<Action.State, Never>
-    private let lock = UnfairLock()
+    private let lock = RecursiveLock()
     
     // Internal state storage to ensure atomic updates with flow execution
     private var _state: Action.State
@@ -24,7 +24,7 @@ public final class Store<Action: FeatureFlow.Action>: @unchecked Sendable {
     private let flow: Flow<Action>?
     private let onAction: (@Sendable (Action) -> Void)?
     
-    private var tasks: [AnyHashable: Task<Void, Never>] = [:]
+    private var tasks: [AnyHashable: (task: Task<Void, Never>, id: UUID)] = [:]
     private var cancellables = Set<AnyCancellable>()
     
     public init(initialState: Action.State, flow: Flow<Action>) {
@@ -54,8 +54,8 @@ public final class Store<Action: FeatureFlow.Action>: @unchecked Sendable {
     private func updateState(_ newState: Action.State) {
         lock.lock()
         _state = newState
-        lock.unlock()
         sendUpdate(newState)
+        lock.unlock()
     }
     
     private func sendUpdate(_ newState: Action.State) {
@@ -71,15 +71,17 @@ public final class Store<Action: FeatureFlow.Action>: @unchecked Sendable {
             let result = flow.run(_state, action)
             _state = result.state
             let effects = result.effects
-            lock.unlock()
             
-            // Notify observers after unlocking to avoid re-entrancy deadlocks 
-            // if a subscriber calls 'send' synchronously.
+            // Notify observers while holding the lock to ensure state synchronization 
+            // and avoid race conditions where multiple threads call sendUpdate out of order.
+            // NSRecursiveLock allows this even if subscribers call send synchronously.
             sendUpdate(result.state)
             
             for effect in effects {
                 execute(effect)
             }
+            
+            lock.unlock()
         } else if let onAction = onAction {
             onAction(action)
         }
@@ -89,13 +91,14 @@ public final class Store<Action: FeatureFlow.Action>: @unchecked Sendable {
         lock.lock()
         if let id = effect.id {
             if effect.policy == .cancelPrevious {
-                tasks[id]?.cancel()
+                tasks[id]?.task.cancel()
             } else if effect.policy == .runIfMissing, tasks[id] != nil {
                 lock.unlock()
                 return
             }
         }
 
+        let executionID = UUID()
         let task = Task { [weak self] in
             let nextAction = await effect.operation()
             
@@ -103,7 +106,9 @@ public final class Store<Action: FeatureFlow.Action>: @unchecked Sendable {
 
             if let id = effect.id {
                 self.lock.lock()
-                self.tasks[id] = nil
+                if self.tasks[id]?.id == executionID {
+                    self.tasks[id] = nil
+                }
                 self.lock.unlock()
             }
 
@@ -113,7 +118,7 @@ public final class Store<Action: FeatureFlow.Action>: @unchecked Sendable {
         }
 
         if let id = effect.id {
-            tasks[id] = task
+            tasks[id] = (task, executionID)
         }
         lock.unlock()
     }
@@ -134,17 +139,16 @@ public final class Store<Action: FeatureFlow.Action>: @unchecked Sendable {
     }
 }
 
-/// A simple wrapper around os_unfair_lock to avoid Swift Concurrency diagnostics
-/// that prevent using NSLock/NSRecursiveLock inside Task blocks.
-private final class UnfairLock: @unchecked Sendable {
-    private var _lock = os_unfair_lock_s()
+/// A thread-safe recursive lock wrapper.
+private final class RecursiveLock: @unchecked Sendable {
+    private let _lock = NSRecursiveLock()
     
     func lock() {
-        os_unfair_lock_lock(&_lock)
+        _lock.lock()
     }
     
     func unlock() {
-        os_unfair_lock_unlock(&_lock)
+        _lock.unlock()
     }
 }
 

@@ -146,4 +146,56 @@ struct EffectTests {
         // Only the first one should have counted
         #expect(store.state.count == 1)
     }
+
+    @Test("Effect handles rapid cancellation without clearing newer tasks")
+    func effectRapidCancellation() async throws {
+        let flow = Flow<TestAction> { state, action in
+            switch action {
+            case .asyncIncrement(let id, let policy, let value):
+                return .result(
+                    state,
+                    effect: Effect(id: id, policy: policy) {
+                        do {
+                            // Sleep enough time so we can cancel it
+                            try await Task.sleep(nanoseconds: 100_000_000) // 0.1s
+                            return .increment(value)
+                        } catch {
+                            return nil
+                        }
+                    }
+                )
+            case .increment(let value):
+                // We add to count so we can see if multiple tasks succeed
+                return .result(state.with { $0.count += value })
+            default:
+                return .result(state)
+            }
+        }
+        
+        let store = Store(initialState: TestState(), flow: flow)
+        
+        // Task 1: Will be cancelled
+        store.send(.asyncIncrement(id: "rapid", policy: .cancelPrevious, value: 10))
+        
+        // Let Task 1 start
+        try await Task.sleep(nanoseconds: 10_000_000)
+        
+        // Task 2: Cancels Task 1. Task 1 will wake up and try to clear the dict.
+        store.send(.asyncIncrement(id: "rapid", policy: .cancelPrevious, value: 100))
+        
+        // Wait long enough for Task 1 to finish its cancellation handler,
+        // but not long enough for Task 2 to finish its 0.1s sleep.
+        try await Task.sleep(nanoseconds: 20_000_000)
+        
+        // Task 3: Should cancel Task 2. If the bug exists, Task 1 cleared the dict,
+        // so Task 3 won't find Task 2 to cancel it!
+        store.send(.asyncIncrement(id: "rapid", policy: .cancelPrevious, value: 1000))
+        
+        // Wait for everything to finish
+        try await Task.sleep(nanoseconds: 300_000_000)
+        
+        // If bug exists: Task 2 and Task 3 both complete. Count = 1100.
+        // If fixed: Task 1 and 2 are cancelled, only Task 3 completes. Count = 1000.
+        #expect(store.state.count == 1000)
+    }
 }
