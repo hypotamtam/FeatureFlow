@@ -27,13 +27,26 @@ public final class ViewStore<State: FeatureFlow.State, Action: Sendable>: Observ
         store.send(action)
     }
     
+    private var scopedStores: [AnyHashable: Any] = [:]
+    
+    private struct ScopeKey: Hashable {
+        let stateKeyPath: AnyHashable
+        let actionType: ObjectIdentifier
+    }
+    
     public func scope<ChildState: FeatureFlow.State, ChildAction: Sendable>(
         state childKeyPath: KeyPath<State, ChildState>,
         action fromChildAction: @escaping @Sendable (ChildAction) -> Action
     ) -> ViewStore<ChildState, ChildAction> {
-        ViewStore<ChildState, ChildAction>(
+        let key = ScopeKey(stateKeyPath: childKeyPath, actionType: ObjectIdentifier(ChildAction.self))
+        if let cached = scopedStores[key] as? ViewStore<ChildState, ChildAction> {
+            return cached
+        }
+        let scopedStore = ViewStore<ChildState, ChildAction>(
             store: store.scope(state: childKeyPath, action: fromChildAction)
         )
+        scopedStores[key] = scopedStore
+        return scopedStore
     }
 
     public func binding<Value>(
