@@ -9,7 +9,7 @@ struct EffectTests {
    
     @Test("Effect.cancel stops a running task")
     func effectCancel() async throws {
-        let flow = Flow<TestAction> { state, action in
+        let flow = Flow<TestState, TestAction> { state, action in
             switch action {
             case .asyncIncrement(let id, _, let value):
                 return .result(
@@ -47,7 +47,7 @@ struct EffectTests {
 
     @Test("Effect.debounce only executes the last call within the window")
     func effectDebounce() async throws {
-        let flow = Flow<TestAction> { state, action in
+        let flow = Flow<TestState, TestAction> { state, action in
             switch action {
             case let .setText(val):
                 return .result(
@@ -81,7 +81,7 @@ struct EffectTests {
 
     @Test("Effect.throttle ignores subsequent calls while one is active")
     func effectThrottle() async throws {
-        let flow = Flow<TestAction> { state, action in
+        let flow = Flow<TestState, TestAction> { state, action in
             switch action {
             case let .increment(val):
                 return .result(
@@ -149,7 +149,7 @@ struct EffectTests {
 
     @Test("Effect handles rapid cancellation without clearing newer tasks")
     func effectRapidCancellation() async throws {
-        let flow = Flow<TestAction> { state, action in
+        let flow = Flow<TestState, TestAction> { state, action in
             switch action {
             case .asyncIncrement(let id, let policy, let value):
                 return .result(

@@ -8,14 +8,12 @@ struct UserState: State {
 }
 
 enum UserAction: Action, Equatable {
-    typealias State = UserState
-    
     case fetchRequest
     case fetchSuccess(String)
     case fetchFailure(String)
 }
 
-let userFlow = Flow<UserAction> { state, action in
+let userFlow = Flow<UserState, UserAction> { state, action in
     switch action {
     case .fetchRequest:
         return .result(

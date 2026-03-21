@@ -14,8 +14,6 @@ struct AppState: State {
 }
 
 enum AppAction: Action, Equatable {
-    typealias State = AppState
-    
     case userAction(UserAction)
     case counterAction(CounterAction)
     case settingsAction(SettingsAction)
@@ -26,7 +24,7 @@ enum AppAction: Action, Equatable {
     case saveSettings
 }
 
-fileprivate let appFlow = Flow<AppAction> { state, action in
+fileprivate let appFlow = Flow<AppState, AppAction> { state, action in
     switch action {
     case .updateTitle(let updateTitle):
         let newTitle = updateTitle.trimmingCharacters(in: .whitespaces)
@@ -71,7 +69,7 @@ fileprivate let appFlow = Flow<AppAction> { state, action in
     }
 }
 
-let rootFlow = Flow<AppAction>.combine(
+let rootFlow = Flow<AppState, AppAction>.combine(
     userFlow.pullback(
         childPath: \.user,
         toChildAction: { 

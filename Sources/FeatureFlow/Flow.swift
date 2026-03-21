@@ -1,44 +1,44 @@
 import Foundation
 
-public struct Flow<Action: FeatureFlow.Action>: Sendable {
+public struct Flow<State: FeatureFlow.State, Action: Sendable>: Sendable {
     public struct Result: Sendable {
-        let state: Action.State
+        let state: State
         let effects: [Effect<Action>]
         
-        init(state: Action.State, effects: [Effect<Action>]) {
+        init(state: State, effects: [Effect<Action>]) {
             self.state = state
             self.effects = effects
         }
     }
     
-    public let run: @Sendable (Action.State, Action) -> Result
+    public let run: @Sendable (State, Action) -> Result
     
-    public init(run: @escaping @Sendable (Action.State, Action) -> Result) {
+    public init(run: @escaping @Sendable (State, Action) -> Result) {
         self.run = run
     }
 }
 
 extension Flow.Result {
-    public static func result(_ state: Action.State) -> Self {
+    public static func result(_ state: State) -> Self {
         .init(state: state, effects: [])
     }
 
-    public static func result(_ state: Action.State, effect: Effect<Action>?) -> Self {
+    public static func result(_ state: State, effect: Effect<Action>?) -> Self {
         .init(state: state, effects: effect.map { [$0] } ?? [])
     }
     
-    static func result(_ state: Action.State, effects: [Effect<Action>]) -> Self {
+    static func result(_ state: State, effects: [Effect<Action>]) -> Self {
         .init(state: state, effects: effects)
     }
 }
 
 public extension Flow {
-    func pullback<ParentAction: FeatureFlow.Action>(
-        childPath: WritableKeyPath<ParentAction.State, Action.State> & Sendable,
+    func pullback<ParentState: FeatureFlow.State, ParentAction: Sendable>(
+        childPath: WritableKeyPath<ParentState, State> & Sendable,
         toChildAction: @escaping @Sendable (ParentAction) -> Action?,
         toParentAction: @escaping @Sendable (Action) -> ParentAction
-    ) -> Flow<ParentAction> {
-        Flow<ParentAction> { parentState, parentAction in
+    ) -> Flow<ParentState, ParentAction> {
+        Flow<ParentState, ParentAction> { parentState, parentAction in
             guard let childAction = toChildAction(parentAction) else {
                 return .result(parentState)
             }
@@ -55,7 +55,7 @@ public extension Flow {
         }
     }
 
-    static func combine(_ flows: Flow<Action>...) -> Self {
+    static func combine(_ flows: Flow<State, Action>...) -> Self {
         Flow { state, action in
             var currentState = state
             var allEffects: [Effect<Action>] = []

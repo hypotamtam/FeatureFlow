@@ -2,7 +2,7 @@ import SwiftUI
 import FeatureFlow
 
 struct UserView: View {
-    @ObservedObject var store: ViewStore<UserAction>
+    @ObservedObject var store: ViewStore<UserState, UserAction>
     
     var body: some View {
         Section("User Profile") {

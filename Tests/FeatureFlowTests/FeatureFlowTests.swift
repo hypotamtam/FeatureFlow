@@ -14,7 +14,6 @@ struct SubState: State, Equatable {
 }
 
 enum SubAction: Action, Equatable {
-    typealias State = SubState
     case increment
 }
 
@@ -25,8 +24,6 @@ struct TestState: State, Equatable {
 }
 
 enum TestAction: Action, Equatable {
-    typealias State = TestState
-    
     case increment(_ value: Int)
     case setText(String)
     case childAction(SubAction)
@@ -35,14 +32,14 @@ enum TestAction: Action, Equatable {
 
 // MARK: - Test Flows
 
-let subFlow = Flow<SubAction> { state, action in
+let subFlow = Flow<SubState, SubAction> { state, action in
     switch action {
     case .increment:
         return .result(state.with { $0.value += 1 })
     }
 }
 
-let baseTestFlow = Flow<TestAction> { state, action in
+let baseTestFlow = Flow<TestState, TestAction> { state, action in
     switch action {
     case .increment(let value):
         return .result(state.with { $0.count += value })
@@ -64,7 +61,7 @@ let baseTestFlow = Flow<TestAction> { state, action in
     }
 }
 
-let combinedTestFlow = Flow<TestAction>.combine(
+let combinedTestFlow = Flow<TestState, TestAction>.combine(
     baseTestFlow,
     subFlow.pullback(
         childPath: \.child,

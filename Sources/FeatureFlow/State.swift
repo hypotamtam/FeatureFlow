@@ -10,6 +10,4 @@ public extension State {
     }
 }
 
-public protocol Action: Sendable {
-    associatedtype State: FeatureFlow.State
-}
+public protocol Action: Sendable {}
