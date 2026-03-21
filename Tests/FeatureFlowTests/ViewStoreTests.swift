@@ -25,4 +25,24 @@ struct ViewStoreTests {
         }
         #expect(viewStore.state.text == "New Value")
     }
+
+    @MainActor
+    @Test("ViewStore.scope returns the same instance for identical scopes")
+    func viewStoreScopeIsMemoized() {
+        let viewStore = ViewStore(initialState: TestState(), flow: baseTestFlow)
+        
+        // 1. Create two identical scopes
+        let child1 = viewStore.scope(
+            state: \.child,
+            action: { .childAction($0) }
+        )
+        
+        let child2 = viewStore.scope(
+            state: \.child,
+            action: { .childAction($0) }
+        )
+        
+        // 2. Assert they are the exact same object reference
+        #expect(child1 === child2)
+    }
 }
