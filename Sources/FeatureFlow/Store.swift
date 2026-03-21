@@ -7,7 +7,7 @@ import SwiftUI
 public final class Store<Action: FeatureFlow.Action>: @unchecked Sendable {
     
     private let stateSubject: CurrentValueSubject<Action.State, Never>
-    private let lock = UnfairLock()
+    private let lock = RecursiveLock()
     
     // Internal state storage to ensure atomic updates with flow execution
     private var _state: Action.State
