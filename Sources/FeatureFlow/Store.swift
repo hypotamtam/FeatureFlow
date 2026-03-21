@@ -140,7 +140,7 @@ public final class Store<Action: FeatureFlow.Action>: @unchecked Sendable {
 }
 
 /// A thread-safe recursive lock wrapper.
-private final class UnfairLock: @unchecked Sendable {
+private final class RecursiveLock: @unchecked Sendable {
     private let _lock = NSRecursiveLock()
     
     func lock() {
