@@ -2,7 +2,7 @@ import SwiftUI
 import FeatureFlow
 
 struct AppView: View {
-    @StateObject private var store = ViewStore(
+    @StateObject private var store = ViewStore<AppState, AppAction>(
         initialState: AppState(),
         flow: rootFlow
     )

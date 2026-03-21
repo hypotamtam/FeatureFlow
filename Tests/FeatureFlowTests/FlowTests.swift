@@ -8,10 +8,10 @@ struct FlowTests {
 
     @Test("Flow.combine executes multiple flows in sequence")
     func flowCombine() {
-        let flowA = Flow<TestAction> { state, _ in
+        let flowA = Flow<TestState, TestAction> { state, _ in
             .result(state.with { $0.count += 1 })
         }
-        let flowB = Flow<TestAction> { state, _ in
+        let flowB = Flow<TestState, TestAction> { state, _ in
             .result(state.with { $0.count *= 2 })
         }
         

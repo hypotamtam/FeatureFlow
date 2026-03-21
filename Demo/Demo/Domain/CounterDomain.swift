@@ -11,8 +11,6 @@ struct CounterState: State {
 }
 
 enum CounterAction: Action {
-    typealias State = CounterState
-    
     case increment
     case decrement
     case delayedIncrement
@@ -20,7 +18,7 @@ enum CounterAction: Action {
     case startMonitoring
 }
 
-let counterFlow = Flow<CounterAction> { state, action in
+let counterFlow = Flow<CounterState, CounterAction> { state, action in
     switch action {
     case .increment:
         return .result(state.with { 

@@ -2,32 +2,30 @@ import Foundation
 import Combine
 import SwiftUI
 
-
-
-public final class Store<Action: FeatureFlow.Action>: @unchecked Sendable {
+public final class Store<State: FeatureFlow.State, Action: Sendable>: @unchecked Sendable {
     
-    private let stateSubject: CurrentValueSubject<Action.State, Never>
+    private let stateSubject: CurrentValueSubject<State, Never>
     private let lock = RecursiveLock()
     
     // Internal state storage to ensure atomic updates with flow execution
-    private var _state: Action.State
+    private var _state: State
     
-    public var state: Action.State {
+    public var state: State {
         lock.lock(); defer { lock.unlock() }
         return _state
     }
     
-    public var statePublisher: AnyPublisher<Action.State, Never> {
+    public var statePublisher: AnyPublisher<State, Never> {
         stateSubject.eraseToAnyPublisher()
     }
     
-    private let flow: Flow<Action>?
+    private let flow: Flow<State, Action>?
     private let onAction: (@Sendable (Action) -> Void)?
     
     private var tasks: [AnyHashable: (task: Task<Void, Never>, id: UUID)] = [:]
     private var cancellables = Set<AnyCancellable>()
     
-    public init(initialState: Action.State, flow: Flow<Action>) {
+    public init(initialState: State, flow: Flow<State, Action>) {
         self._state = initialState
         self.stateSubject = CurrentValueSubject(initialState)
         self.flow = flow
@@ -35,9 +33,9 @@ public final class Store<Action: FeatureFlow.Action>: @unchecked Sendable {
     }
     
     private init(
-        initialState: Action.State,
+        initialState: State,
         onAction: @escaping @Sendable (Action) -> Void,
-        publisher: AnyPublisher<Action.State, Never>
+        publisher: AnyPublisher<State, Never>
     ) {
         self._state = initialState
         self.stateSubject = CurrentValueSubject(initialState)
@@ -51,14 +49,14 @@ public final class Store<Action: FeatureFlow.Action>: @unchecked Sendable {
             .store(in: &cancellables)
     }
     
-    private func updateState(_ newState: Action.State) {
+    private func updateState(_ newState: State) {
         lock.lock()
         _state = newState
         sendUpdate(newState)
         lock.unlock()
     }
     
-    private func sendUpdate(_ newState: Action.State) {
+    private func sendUpdate(_ newState: State) {
         guard stateSubject.value != newState else {
             return
         }
@@ -123,11 +121,11 @@ public final class Store<Action: FeatureFlow.Action>: @unchecked Sendable {
         lock.unlock()
     }
     
-    public func scope<ChildAction>(
-        state childKeyPath: KeyPath<Action.State, ChildAction.State>,
+    public func scope<ChildState: FeatureFlow.State, ChildAction: Sendable>(
+        state childKeyPath: KeyPath<State, ChildState>,
         action fromChildAction: @escaping @Sendable (ChildAction) -> Action
-    ) -> Store<ChildAction> {
-        Store<ChildAction>(
+    ) -> Store<ChildState, ChildAction> {
+        Store<ChildState, ChildAction>(
             initialState: state[keyPath: childKeyPath],
             onAction: { [weak self] childAction in
                 self?.send(fromChildAction(childAction))
@@ -151,4 +149,3 @@ private final class RecursiveLock: @unchecked Sendable {
         _lock.unlock()
     }
 }
-
