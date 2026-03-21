@@ -9,6 +9,30 @@ public final class ViewStore<State: FeatureFlow.State, Action: Sendable>: Observ
     
     private let store: Store<State, Action>
     
+    private let scopedStores = NSCache<ScopeCacheKey, AnyObject>()
+    
+    private final class ScopeCacheKey: NSObject {
+        let stateKeyPath: AnyHashable
+        let actionType: ObjectIdentifier
+        
+        init(stateKeyPath: AnyHashable, actionType: ObjectIdentifier) {
+            self.stateKeyPath = stateKeyPath
+            self.actionType = actionType
+        }
+        
+        override var hash: Int {
+            var hasher = Hasher()
+            hasher.combine(stateKeyPath)
+            hasher.combine(actionType)
+            return hasher.finalize()
+        }
+        
+        override func isEqual(_ object: Any?) -> Bool {
+            guard let other = object as? ScopeCacheKey else { return false }
+            return stateKeyPath == other.stateKeyPath && actionType == other.actionType
+        }
+    }
+    
     public convenience init(initialState: State, flow: Flow<State, Action>) {
         self.init(store: Store(initialState: initialState, flow: flow))
     }
@@ -27,25 +51,18 @@ public final class ViewStore<State: FeatureFlow.State, Action: Sendable>: Observ
         store.send(action)
     }
     
-    private var scopedStores: [AnyHashable: Any] = [:]
-    
-    private struct ScopeKey: Hashable {
-        let stateKeyPath: AnyHashable
-        let actionType: ObjectIdentifier
-    }
-    
     public func scope<ChildState: FeatureFlow.State, ChildAction: Sendable>(
         state childKeyPath: KeyPath<State, ChildState>,
         action fromChildAction: @escaping @Sendable (ChildAction) -> Action
     ) -> ViewStore<ChildState, ChildAction> {
-        let key = ScopeKey(stateKeyPath: childKeyPath, actionType: ObjectIdentifier(ChildAction.self))
-        if let cached = scopedStores[key] as? ViewStore<ChildState, ChildAction> {
+        let key = ScopeCacheKey(stateKeyPath: childKeyPath, actionType: ObjectIdentifier(ChildAction.self))
+        if let cached = scopedStores.object(forKey: key) as? ViewStore<ChildState, ChildAction> {
             return cached
         }
         let scopedStore = ViewStore<ChildState, ChildAction>(
             store: store.scope(state: childKeyPath, action: fromChildAction)
         )
-        scopedStores[key] = scopedStore
+        scopedStores.setObject(scopedStore, forKey: key)
         return scopedStore
     }
 
