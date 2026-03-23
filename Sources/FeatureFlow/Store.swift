@@ -19,6 +19,18 @@ public final class Store<State: FeatureFlow.State, Action: Sendable>: @unchecked
         stateSubject.eraseToAnyPublisher()
     }
     
+    public var stateStream: AsyncStream<State> {
+        AsyncStream { continuation in
+            let cancellable = SendableCancellable(stateSubject
+                .removeDuplicates()
+                .sink { continuation.yield($0) })
+            
+            continuation.onTermination = { @Sendable _ in
+                cancellable.cancel()
+            }
+        }
+    }
+    
     private let flow: Flow<State, Action>?
     private let onAction: (@Sendable (Action) -> Void)?
     
@@ -147,5 +159,15 @@ private final class RecursiveLock: @unchecked Sendable {
     
     func unlock() {
         _lock.unlock()
+    }
+}
+
+private final class SendableCancellable: @unchecked Sendable {
+    private let cancellable: AnyCancellable
+    init(_ cancellable: AnyCancellable) {
+        self.cancellable = cancellable
+    }
+    func cancel() {
+        cancellable.cancel()
     }
 }

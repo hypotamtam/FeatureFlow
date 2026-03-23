@@ -1,18 +1,28 @@
-import Foundation
-import Combine
+#if canImport(Observation)
+import Observation
 import SwiftUI
+import Foundation
 
-@available(iOS, deprecated: 17.0, message: "Use ObservableViewStore for better performance and modern SwiftUI support.")
-@available(macOS, deprecated: 14.0, message: "Use ObservableViewStore for better performance and modern SwiftUI support.")
-@available(tvOS, deprecated: 17.0, message: "Use ObservableViewStore for better performance and modern SwiftUI support.")
-@available(watchOS, deprecated: 10.0, message: "Use ObservableViewStore for better performance and modern SwiftUI support.")
+private final class TaskCancellable: Sendable {
+    private let task: Task<Void, Never>
+    init(_ task: Task<Void, Never>) { self.task = task }
+    deinit { task.cancel() }
+}
+
+@available(iOS 17.0, macOS 14.0, tvOS 17.0, watchOS 10.0, *)
+@Observable
 @MainActor
-public final class ViewStore<State: FeatureFlow.State, Action: Sendable>: ObservableObject {
+public final class ObservableViewStore<State: FeatureFlow.State, Action: Sendable> {
     
-    @Published public private(set) var state: State
+    public private(set) var state: State
     
+    @ObservationIgnored
     private let store: Store<State, Action>
     
+    @ObservationIgnored
+    private var stateObservation: TaskCancellable?
+    
+    @ObservationIgnored
     private let scopedStores = NSCache<ScopeCacheKey, AnyObject>()
     
     private final class ScopeCacheKey: NSObject {
@@ -45,10 +55,13 @@ public final class ViewStore<State: FeatureFlow.State, Action: Sendable>: Observ
         self.store = store
         self.state = store.state
         
-        store.statePublisher
-            .dropFirst()
-            .receive(on: DispatchQueue.main) 
-            .assign(to: &$state)
+        let task = Task { @MainActor [weak self] in
+            for await newState in store.stateStream {
+                guard let self = self else { break }
+                self.state = newState
+            }
+        }
+        self.stateObservation = TaskCancellable(task)
     }
     
     public func send(_ action: Action) {
@@ -58,12 +71,12 @@ public final class ViewStore<State: FeatureFlow.State, Action: Sendable>: Observ
     public func scope<ChildState: FeatureFlow.State, ChildAction: Sendable>(
         state childKeyPath: KeyPath<State, ChildState>,
         action fromChildAction: @escaping @Sendable (ChildAction) -> Action
-    ) -> ViewStore<ChildState, ChildAction> {
+    ) -> ObservableViewStore<ChildState, ChildAction> {
         let key = ScopeCacheKey(stateKeyPath: childKeyPath, actionType: ObjectIdentifier(ChildAction.self))
-        if let cached = scopedStores.object(forKey: key) as? ViewStore<ChildState, ChildAction> {
+        if let cached = scopedStores.object(forKey: key) as? ObservableViewStore<ChildState, ChildAction> {
             return cached
         }
-        let scopedStore = ViewStore<ChildState, ChildAction>(
+        let scopedStore = ObservableViewStore<ChildState, ChildAction>(
             store: store.scope(state: childKeyPath, action: fromChildAction)
         )
         scopedStores.setObject(scopedStore, forKey: key)
@@ -80,3 +93,4 @@ public final class ViewStore<State: FeatureFlow.State, Action: Sendable>: Observ
         )
     }
 }
+#endif
