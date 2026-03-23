@@ -22,7 +22,6 @@ public final class Store<State: FeatureFlow.State, Action: Sendable>: @unchecked
     public var stateStream: AsyncStream<State> {
         AsyncStream { continuation in
             let cancellable = SendableCancellable(stateSubject
-                .removeDuplicates()
                 .sink { continuation.yield($0) })
             
             continuation.onTermination = { @Sendable _ in
