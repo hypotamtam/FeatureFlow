@@ -55,10 +55,12 @@ public final class ObservableViewStore<State: FeatureFlow.State, Action: Sendabl
         self.store = store
         self.state = store.state
         
-        let task = Task { @MainActor [weak self] in
+        let task = Task { [weak self] in
             for await newState in store.stateStream {
-                guard let self = self else { break }
-                self.state = newState
+                guard let self else { break }
+                await MainActor.run {
+                    self.state = newState
+                }
             }
         }
         self.stateObservation = TaskCancellable(task)

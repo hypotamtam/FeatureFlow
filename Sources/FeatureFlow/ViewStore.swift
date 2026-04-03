@@ -47,10 +47,12 @@ public final class ViewStore<State: FeatureFlow.State, Action: Sendable>: Observ
         self.store = store
         self.state = store.state
         
-        self.stateObservation = Task { @MainActor [weak self] in
+        self.stateObservation = Task { [weak self] in
             for await newState in store.stateStream {
-                guard let self = self else { break }
-                self.state = newState
+                guard let self else { break }
+                await MainActor.run {
+                    self.state = newState
+                }
             }
         }
     }
