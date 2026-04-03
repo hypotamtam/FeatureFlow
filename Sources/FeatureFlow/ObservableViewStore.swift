@@ -1,34 +1,42 @@
-import Foundation
-import Combine
+#if canImport(Observation)
+import Observation
 import SwiftUI
+import Foundation
 
-private protocol AnyWeakViewStore {
+private final class TaskCancellable: Sendable {
+    private let task: Task<Void, Never>
+    init(_ task: Task<Void, Never>) { self.task = task }
+    deinit { task.cancel() }
+}
+
+private protocol AnyWeakObservableViewStore {
     var isAlive: Bool { get }
 }
 
-@available(iOS, deprecated: 17.0, message: "Use ObservableViewStore for better performance and modern SwiftUI support.")
-@available(macOS, deprecated: 14.0, message: "Use ObservableViewStore for better performance and modern SwiftUI support.")
-@available(tvOS, deprecated: 17.0, message: "Use ObservableViewStore for better performance and modern SwiftUI support.")
-@available(watchOS, deprecated: 10.0, message: "Use ObservableViewStore for better performance and modern SwiftUI support.")
+@available(iOS 17.0, macOS 14.0, tvOS 17.0, watchOS 10.0, *)
+@Observable
 @MainActor
-public final class ViewStore<State: FeatureFlow.State, Action: Sendable>: ObservableObject {
+public final class ObservableViewStore<State: FeatureFlow.State, Action: Sendable> {
     
-    @Published public private(set) var state: State
+    public private(set) var state: State
     
+    @ObservationIgnored
     private let store: Store<State, Action>
     
-    private var scopedStores: [ScopeKey: AnyWeakViewStore] = [:]
+    @ObservationIgnored
+    private var stateObservation: TaskCancellable?
     
-    private var stateObservation: Task<Void, Never>?
+    @ObservationIgnored
+    private var scopedStores: [ScopeKey: AnyWeakObservableViewStore] = [:]
     
     private struct ScopeKey: Hashable {
         let stateKeyPath: AnyHashable
         let actionType: ObjectIdentifier
     }
     
-    private final class WeakStore<ChildState: FeatureFlow.State, ChildAction: Sendable>: AnyWeakViewStore {
-        weak var store: ViewStore<ChildState, ChildAction>?
-        init(_ store: ViewStore<ChildState, ChildAction>) {
+    private final class WeakStore<ChildState: FeatureFlow.State, ChildAction: Sendable>: AnyWeakObservableViewStore {
+        weak var store: ObservableViewStore<ChildState, ChildAction>?
+        init(_ store: ObservableViewStore<ChildState, ChildAction>) {
             self.store = store
         }
         var isAlive: Bool { store != nil }
@@ -37,21 +45,18 @@ public final class ViewStore<State: FeatureFlow.State, Action: Sendable>: Observ
     public convenience init(initialState: State, flow: Flow<State, Action>) {
         self.init(store: Store(initialState: initialState, flow: flow))
     }
-    
+        
     init(store: Store<State, Action>) {
         self.store = store
         self.state = store.state
         
-        self.stateObservation = Task { [weak self] in
+        let task = Task { [weak self] in
             for await newState in store.stateStream {
                 guard let self else { break }
                     self.state = newState
             }
         }
-    }
-
-    deinit {
-        stateObservation?.cancel()
+        self.stateObservation = TaskCancellable(task)
     }
     
     public func send(_ action: Action) {
@@ -61,7 +66,7 @@ public final class ViewStore<State: FeatureFlow.State, Action: Sendable>: Observ
     public func scope<ChildState: FeatureFlow.State, ChildAction: Sendable>(
         state childKeyPath: KeyPath<State, ChildState> & Sendable,
         action fromChildAction: @escaping @Sendable (ChildAction) -> Action
-    ) -> ViewStore<ChildState, ChildAction> {
+    ) -> ObservableViewStore<ChildState, ChildAction> {
         let key = ScopeKey(stateKeyPath: childKeyPath, actionType: ObjectIdentifier(ChildAction.self))
         
         if let weakStore = scopedStores[key] as? WeakStore<ChildState, ChildAction>,
@@ -69,7 +74,7 @@ public final class ViewStore<State: FeatureFlow.State, Action: Sendable>: Observ
             return cached
         }
         
-        let scopedStore = ViewStore<ChildState, ChildAction>(
+        let scopedStore = ObservableViewStore<ChildState, ChildAction>(
             store: store.scope(state: childKeyPath, action: fromChildAction)
         )
         scopedStores[key] = WeakStore(scopedStore)
@@ -100,3 +105,4 @@ public final class ViewStore<State: FeatureFlow.State, Action: Sendable>: Observ
         )
     }
 }
+#endif

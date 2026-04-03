@@ -53,4 +53,24 @@ struct StoreTests {
         
         #expect(store.state.count == count)
     }
+
+    @Test("Scoped store receives parent updates correctly")
+    func scopedStoreReceivesParentUpdates() async throws {
+        let parentStore = Store(initialState: TestState(), flow: combinedTestFlow)
+        let childStore = parentStore.scope(
+            state: \.child,
+            action: { .childAction($0) }
+        )
+        
+        #expect(childStore.state.value == 0)
+        
+        // Send an action to the PARENT store that modifies the child state
+        parentStore.send(.childAction(.increment))
+        
+        // Wait for the AsyncStream to propagate the change down to the child store
+        try await Task.sleep(nanoseconds: 50_000_000)
+        
+        #expect(parentStore.state.child.value == 1)
+        #expect(childStore.state.value == 1)
+    }
 }

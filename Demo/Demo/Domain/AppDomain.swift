@@ -41,7 +41,7 @@ fileprivate let appFlow = Flow<AppState, AppAction> { state, action in
     case .syncTitle:
         return .result(
             state.with { $0.isSyncing = true },
-            effect: Effect {
+            effect: Effect(id: "sync-title") {
                 try? await Task.sleep(nanoseconds: 4_000_000_000)
                 return .cancelSync
             }
@@ -99,6 +99,6 @@ let rootFlow = Flow<AppState, AppAction>.combine(
     
     appFlow,
     
-    createLogReducer() // You might want to rename this to createLogFlow() later
+    createLogFlow()
 )
 
