@@ -41,14 +41,22 @@ public final class ViewStore<State: FeatureFlow.State, Action: Sendable>: Observ
         self.init(store: Store(initialState: initialState, flow: flow))
     }
         
+    private var stateObservation: Task<Void, Never>?
+    
     init(store: Store<State, Action>) {
         self.store = store
         self.state = store.state
         
-        store.statePublisher
-            .dropFirst()
-            .receive(on: DispatchQueue.main) 
-            .assign(to: &$state)
+        self.stateObservation = Task { @MainActor [weak self] in
+            for await newState in store.stateStream {
+                guard let self = self else { break }
+                self.state = newState
+            }
+        }
+    }
+
+    deinit {
+        stateObservation?.cancel()
     }
     
     public func send(_ action: Action) {

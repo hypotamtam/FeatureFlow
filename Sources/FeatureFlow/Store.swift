@@ -1,31 +1,32 @@
 import Foundation
-import Combine
 import SwiftUI
 
 public final class Store<State: FeatureFlow.State, Action: Sendable>: @unchecked Sendable {
     
-    private let stateSubject: CurrentValueSubject<State, Never>
     private let lock = RecursiveLock()
     
     // Internal state storage to ensure atomic updates with flow execution
     private var _state: State
+    private var continuations: [UUID: AsyncStream<State>.Continuation] = [:]
+    private var streamTask: Task<Void, Never>?
     
     public var state: State {
         lock.lock(); defer { lock.unlock() }
         return _state
     }
     
-    public var statePublisher: AnyPublisher<State, Never> {
-        stateSubject.eraseToAnyPublisher()
-    }
-    
     public var stateStream: AsyncStream<State> {
         AsyncStream { continuation in
-            let cancellable = SendableCancellable(stateSubject
-                .sink { continuation.yield($0) })
+            let id = UUID()
+            lock.lock()
+            continuations[id] = continuation
+            let currentState = _state
+            lock.unlock()
             
-            continuation.onTermination = { @Sendable _ in
-                cancellable.cancel()
+            continuation.yield(currentState)
+            
+            continuation.onTermination = { @Sendable [weak self] _ in
+                self?.removeContinuation(id: id)
             }
         }
     }
@@ -34,57 +35,69 @@ public final class Store<State: FeatureFlow.State, Action: Sendable>: @unchecked
     private let onAction: (@Sendable (Action) -> Void)?
     
     private var tasks: [AnyHashable: (task: Task<Void, Never>, id: UUID)] = [:]
-    private var cancellables = Set<AnyCancellable>()
     
     public init(initialState: State, flow: Flow<State, Action>) {
         self._state = initialState
-        self.stateSubject = CurrentValueSubject(initialState)
         self.flow = flow
         self.onAction = nil
     }
     
-    private init(
+    private init<S: AsyncSequence & Sendable>(
         initialState: State,
         onAction: @escaping @Sendable (Action) -> Void,
-        publisher: AnyPublisher<State, Never>
-    ) {
+        stream: S
+    ) where S.Element == State {
         self._state = initialState
-        self.stateSubject = CurrentValueSubject(initialState)
         self.flow = nil
         self.onAction = onAction
         
-        publisher
-            .sink { [weak self] newState in
-                self?.updateState(newState)
+        self.streamTask = Task { [weak self] in
+            do {
+                for try await newState in stream {
+                    self?.updateState(newState)
+                }
+            } catch {
+                // Should not happen for our stream types
             }
-            .store(in: &cancellables)
+        }
+    }
+    
+    deinit {
+        streamTask?.cancel()
+    }
+    
+    private func removeContinuation(id: UUID) {
+        lock.lock()
+        continuations[id] = nil
+        lock.unlock()
     }
     
     private func updateState(_ newState: State) {
         lock.lock()
-        _state = newState
-        sendUpdate(newState)
-        lock.unlock()
+        defer { lock.unlock() }
+        if _state != newState {
+            _state = newState
+            notifyObservers(of: newState)
+        }
     }
     
-    private func sendUpdate(_ newState: State) {
-        guard stateSubject.value != newState else {
-            return
+    private func notifyObservers(of newState: State) {
+        for continuation in continuations.values {
+            continuation.yield(newState)
         }
-        stateSubject.send(newState)
     }
     
     public func send(_ action: Action) {
         if let flow = flow {
             lock.lock()
+            let oldState = _state
             let result = flow.run(_state, action)
             _state = result.state
             let effects = result.effects
             
-            // Notify observers while holding the lock to ensure state synchronization 
-            // and avoid race conditions where multiple threads call sendUpdate out of order.
-            // NSRecursiveLock allows this even if subscribers call send synchronously.
-            sendUpdate(result.state)
+            if oldState != result.state {
+                notifyObservers(of: result.state)
+            }
             
             for effect in effects {
                 execute(effect)
@@ -136,14 +149,16 @@ public final class Store<State: FeatureFlow.State, Action: Sendable>: @unchecked
         state childKeyPath: KeyPath<State, ChildState>,
         action fromChildAction: @escaping @Sendable (ChildAction) -> Action
     ) -> Store<ChildState, ChildAction> {
-        Store<ChildState, ChildAction>(
+        let mappedStream = self.stateStream.map { state in
+            state[keyPath: childKeyPath]
+        }
+        
+        return Store<ChildState, ChildAction>(
             initialState: state[keyPath: childKeyPath],
             onAction: { [weak self] childAction in
                 self?.send(fromChildAction(childAction))
             },
-            publisher: stateSubject
-                .map(childKeyPath)
-                .eraseToAnyPublisher()
+            stream: mappedStream
         )
     }
 }
@@ -158,15 +173,5 @@ private final class RecursiveLock: @unchecked Sendable {
     
     func unlock() {
         _lock.unlock()
-    }
-}
-
-private final class SendableCancellable: @unchecked Sendable {
-    private let cancellable: AnyCancellable
-    init(_ cancellable: AnyCancellable) {
-        self.cancellable = cancellable
-    }
-    func cancel() {
-        cancellable.cancel()
     }
 }

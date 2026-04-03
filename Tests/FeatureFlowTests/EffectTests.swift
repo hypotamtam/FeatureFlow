@@ -65,7 +65,7 @@ struct EffectTests {
         }
         
         let store = Store(initialState: TestState(), flow: flow)
-        var iterator = store.statePublisher.dropFirst().values.makeAsyncIterator()
+        var iterator = store.stateStream.dropFirst().makeAsyncIterator()
         
         // Send multiple actions rapidly
         store.send(.setText("a"))      // 0.0s
