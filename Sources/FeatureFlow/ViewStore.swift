@@ -45,9 +45,7 @@ public final class ViewStore<State: FeatureFlow.State, Action: Sendable>: Observ
         self.stateObservation = Task { [weak self] in
             for await newState in store.stateStream {
                 guard let self else { break }
-                await MainActor.run {
                     self.state = newState
-                }
             }
         }
     }
@@ -97,7 +95,7 @@ public final class ViewStore<State: FeatureFlow.State, Action: Sendable>: Observ
         to action: Action
     ) -> Binding<Value> {
         Binding(
-            get: { self.store.state[keyPath: keyPath] },
+            get: { self.state[keyPath: keyPath] },
             set: { _ in self.send(action) }
         )
     }
