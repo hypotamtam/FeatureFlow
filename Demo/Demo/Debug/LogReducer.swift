@@ -7,7 +7,7 @@
 
 import FeatureFlow
 
-func createLogReducer<State: FeatureFlow.State, Action: Sendable>() -> Flow<State, Action> {
+func createLogFlow<State: FeatureFlow.State, Action: Sendable>() -> Flow<State, Action> {
     .init { state, action in
         print("---- Send ----")
         dump(action, name: "Action")

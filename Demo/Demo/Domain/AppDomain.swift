@@ -99,6 +99,6 @@ let rootFlow = Flow<AppState, AppAction>.combine(
     
     appFlow,
     
-    createLogReducer() // You might want to rename this to createLogFlow() later
+//    createLogFlow()
 )
 
