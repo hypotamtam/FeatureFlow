@@ -9,6 +9,10 @@ private final class TaskCancellable: Sendable {
     deinit { task.cancel() }
 }
 
+private protocol AnyWeakObservableViewStore {
+    var isAlive: Bool { get }
+}
+
 @available(iOS 17.0, macOS 14.0, tvOS 17.0, watchOS 10.0, *)
 @Observable
 @MainActor
@@ -23,28 +27,19 @@ public final class ObservableViewStore<State: FeatureFlow.State, Action: Sendabl
     private var stateObservation: TaskCancellable?
     
     @ObservationIgnored
-    private let scopedStores = NSCache<ScopeCacheKey, AnyObject>()
+    private var scopedStores: [ScopeKey: AnyWeakObservableViewStore] = [:]
     
-    private final class ScopeCacheKey: NSObject {
+    private struct ScopeKey: Hashable {
         let stateKeyPath: AnyHashable
         let actionType: ObjectIdentifier
-        
-        init(stateKeyPath: AnyHashable, actionType: ObjectIdentifier) {
-            self.stateKeyPath = stateKeyPath
-            self.actionType = actionType
+    }
+    
+    private final class WeakStore<ChildState: FeatureFlow.State, ChildAction: Sendable>: AnyWeakObservableViewStore {
+        weak var store: ObservableViewStore<ChildState, ChildAction>?
+        init(_ store: ObservableViewStore<ChildState, ChildAction>) {
+            self.store = store
         }
-        
-        override var hash: Int {
-            var hasher = Hasher()
-            hasher.combine(stateKeyPath)
-            hasher.combine(actionType)
-            return hasher.finalize()
-        }
-        
-        override func isEqual(_ object: Any?) -> Bool {
-            guard let other = object as? ScopeCacheKey else { return false }
-            return stateKeyPath == other.stateKeyPath && actionType == other.actionType
-        }
+        var isAlive: Bool { store != nil }
     }
     
     public convenience init(initialState: State, flow: Flow<State, Action>) {
@@ -74,14 +69,21 @@ public final class ObservableViewStore<State: FeatureFlow.State, Action: Sendabl
         state childKeyPath: KeyPath<State, ChildState>,
         action fromChildAction: @escaping @Sendable (ChildAction) -> Action
     ) -> ObservableViewStore<ChildState, ChildAction> {
-        let key = ScopeCacheKey(stateKeyPath: childKeyPath, actionType: ObjectIdentifier(ChildAction.self))
-        if let cached = scopedStores.object(forKey: key) as? ObservableViewStore<ChildState, ChildAction> {
+        let key = ScopeKey(stateKeyPath: childKeyPath, actionType: ObjectIdentifier(ChildAction.self))
+        
+        if let weakStore = scopedStores[key] as? WeakStore<ChildState, ChildAction>,
+           let cached = weakStore.store {
             return cached
         }
+        
         let scopedStore = ObservableViewStore<ChildState, ChildAction>(
             store: store.scope(state: childKeyPath, action: fromChildAction)
         )
-        scopedStores.setObject(scopedStore, forKey: key)
+        scopedStores[key] = WeakStore(scopedStore)
+        
+        // Cleanup dead weak references to keep the dictionary small
+        scopedStores = scopedStores.filter { $0.value.isAlive }
+        
         return scopedStore
     }
 

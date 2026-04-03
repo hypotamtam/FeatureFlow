@@ -2,6 +2,10 @@ import Foundation
 import Combine
 import SwiftUI
 
+private protocol AnyWeakViewStore {
+    var isAlive: Bool { get }
+}
+
 @available(iOS, deprecated: 17.0, message: "Use ObservableViewStore for better performance and modern SwiftUI support.")
 @available(macOS, deprecated: 14.0, message: "Use ObservableViewStore for better performance and modern SwiftUI support.")
 @available(tvOS, deprecated: 17.0, message: "Use ObservableViewStore for better performance and modern SwiftUI support.")
@@ -13,28 +17,19 @@ public final class ViewStore<State: FeatureFlow.State, Action: Sendable>: Observ
     
     private let store: Store<State, Action>
     
-    private let scopedStores = NSCache<ScopeCacheKey, AnyObject>()
+    private var scopedStores: [ScopeKey: AnyWeakViewStore] = [:]
     
-    private final class ScopeCacheKey: NSObject {
+    private struct ScopeKey: Hashable {
         let stateKeyPath: AnyHashable
         let actionType: ObjectIdentifier
-        
-        init(stateKeyPath: AnyHashable, actionType: ObjectIdentifier) {
-            self.stateKeyPath = stateKeyPath
-            self.actionType = actionType
+    }
+    
+    private final class WeakStore<ChildState: FeatureFlow.State, ChildAction: Sendable>: AnyWeakViewStore {
+        weak var store: ViewStore<ChildState, ChildAction>?
+        init(_ store: ViewStore<ChildState, ChildAction>) {
+            self.store = store
         }
-        
-        override var hash: Int {
-            var hasher = Hasher()
-            hasher.combine(stateKeyPath)
-            hasher.combine(actionType)
-            return hasher.finalize()
-        }
-        
-        override func isEqual(_ object: Any?) -> Bool {
-            guard let other = object as? ScopeCacheKey else { return false }
-            return stateKeyPath == other.stateKeyPath && actionType == other.actionType
-        }
+        var isAlive: Bool { store != nil }
     }
     
     public convenience init(initialState: State, flow: Flow<State, Action>) {
@@ -69,14 +64,21 @@ public final class ViewStore<State: FeatureFlow.State, Action: Sendable>: Observ
         state childKeyPath: KeyPath<State, ChildState>,
         action fromChildAction: @escaping @Sendable (ChildAction) -> Action
     ) -> ViewStore<ChildState, ChildAction> {
-        let key = ScopeCacheKey(stateKeyPath: childKeyPath, actionType: ObjectIdentifier(ChildAction.self))
-        if let cached = scopedStores.object(forKey: key) as? ViewStore<ChildState, ChildAction> {
+        let key = ScopeKey(stateKeyPath: childKeyPath, actionType: ObjectIdentifier(ChildAction.self))
+        
+        if let weakStore = scopedStores[key] as? WeakStore<ChildState, ChildAction>,
+           let cached = weakStore.store {
             return cached
         }
+        
         let scopedStore = ViewStore<ChildState, ChildAction>(
             store: store.scope(state: childKeyPath, action: fromChildAction)
         )
-        scopedStores.setObject(scopedStore, forKey: key)
+        scopedStores[key] = WeakStore(scopedStore)
+        
+        // Cleanup dead weak references to keep the dictionary small
+        scopedStores = scopedStores.filter { $0.value.isAlive }
+        
         return scopedStore
     }
 

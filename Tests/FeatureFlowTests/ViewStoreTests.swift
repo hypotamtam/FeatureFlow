@@ -2,10 +2,26 @@
 
 import Testing
 import Combine
+import Foundation
 @testable import FeatureFlow
 
 @Suite("ViewStore Tests")
 struct ViewStoreTests {
+
+    @MainActor
+    @Test("ViewStore correctly updates state")
+    func stateUpdates() async throws {
+        let viewStore = ViewStore(initialState: TestState(), flow: baseTestFlow)
+        
+        #expect(viewStore.state.count == 0)
+        
+        viewStore.send(.increment(5))
+        
+        // Wait for AsyncStream to process
+        try await Task.sleep(nanoseconds: 50_000_000)
+        
+        #expect(viewStore.state.count == 5)
+    }
 
     @MainActor
     @Test("Store.binding creates a working SwiftUI binding")
@@ -46,6 +62,47 @@ struct ViewStoreTests {
         #expect(child1 === child2)
     }
     
+    @MainActor
+    @Test("ViewStore releases scoped stores when no longer referenced")
+    func scopeIsReleased() {
+        let viewStore = ViewStore(initialState: TestState(), flow: baseTestFlow)
+        
+        weak var weakChild: ViewStore<SubState, SubAction>?
+        
+        autoreleasepool {
+            let child = viewStore.scope(
+                state: \.child,
+                action: { .childAction($0) }
+            )
+            weakChild = child
+            #expect(weakChild != nil)
+        }
+        
+        // After autoreleasepool, the only reference should have been the dictionary
+        // Since the dictionary holds it weakly, it should be nil
+        #expect(weakChild == nil)
+        
+        // Create another scope to trigger the cleanup filter
+        _ = viewStore.scope(
+            state: \.child,
+            action: { .childAction($0) }
+        )
+    }
+    
+    @MainActor
+    @Test("ViewStore.binding(to: Action) creates a working constant action binding")
+    func constantActionBinding() async throws {
+        let viewStore = ViewStore(initialState: TestState(count: 0), flow: baseTestFlow)
+        let binding = viewStore.binding(\.count, to: .increment(10))
+        
+        #expect(binding.wrappedValue == 0)
+        
+        binding.wrappedValue = 999 // Value doesn't matter for constant action
+        
+        try await Task.sleep(nanoseconds: 50_000_000)
+        #expect(viewStore.state.count == 10)
+    }
+
     @MainActor
     @Test("ViewStore removes duplicate state updates to prevent unnecessary rendering")
     func viewStoreRemovesDuplicates() async throws {
