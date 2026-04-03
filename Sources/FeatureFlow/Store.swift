@@ -18,16 +18,16 @@ public final class Store<State: FeatureFlow.State, Action: Sendable>: @unchecked
     public var stateStream: AsyncStream<State> {
         AsyncStream { continuation in
             let id = UUID()
-            lock.lock()
-            continuations[id] = continuation
-            let currentState = _state
-            lock.unlock()
-            
-            continuation.yield(currentState)
             
             continuation.onTermination = { @Sendable [weak self] _ in
                 self?.removeContinuation(id: id)
             }
+
+            lock.lock()
+            defer { lock.unlock() }
+            
+            continuations[id] = continuation
+            continuation.yield(_state)
         }
     }
     
