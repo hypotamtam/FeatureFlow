@@ -56,12 +56,9 @@ struct ModernAppView: View {
     private var headerSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 12) {
-                // For @Observable, we can use @Bindable for direct property access if needed,
-                // but our binding() method still works great for custom mapping.
-                TextField("App Title", text: store.binding(
-                    \.appTitle,
-                    to: { .updateTitle($0) }
-                ))
+                // We use store.binding instead of @Bindable because UDF requires state mutations
+                // to happen exclusively through dispatched actions, rather than direct property modification.
+                TextField("App Title", text: store.binding(\.appTitle, to: { .updateTitle($0) }))
                 .textFieldStyle(.roundedBorder)
                 #if os(iOS)
                 .font(.title2.bold())

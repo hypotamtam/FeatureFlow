@@ -56,10 +56,7 @@ struct AppView: View {
     private var headerSection: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 12) {
-                TextField("App Title", text: store.binding(
-                    \.appTitle,
-                    to: { .updateTitle($0) }
-                ))
+                TextField("App Title", text: store.binding(\.appTitle, to: { .updateTitle($0) }))
                 .textFieldStyle(.roundedBorder)
                 #if os(iOS)
                 .font(.title2.bold())

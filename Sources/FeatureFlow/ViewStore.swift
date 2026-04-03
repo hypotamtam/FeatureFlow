@@ -79,4 +79,14 @@ public final class ViewStore<State: FeatureFlow.State, Action: Sendable>: Observ
             set: { self.send(action($0)) }
         )
     }
+
+    public func binding<Value>(
+        _ keyPath: KeyPath<State, Value>,
+        to action: Action
+    ) -> Binding<Value> {
+        Binding(
+            get: { self.store.state[keyPath: keyPath] },
+            set: { _ in self.send(action) }
+        )
+    }
 }

@@ -8,15 +8,9 @@ struct ModernSettingsView: View {
     
     var body: some View {
         Section("Preferences") {
-            Toggle("Dark Mode", isOn: Binding(
-                get: { store.state.isDarkMode },
-                set: { _ in store.send(.toggleDarkMode) }
-            ))
+            Toggle("Dark Mode", isOn: store.binding(\.isDarkMode, to: .toggleDarkMode))
             
-            Toggle("Notifications", isOn: Binding(
-                get: { store.state.notificationsEnabled },
-                set: { _ in store.send(.toggleNotifications) }
-            ))
+            Toggle("Notifications", isOn: store.binding(\.notificationsEnabled, to: .toggleNotifications))
         }
     }
 }
