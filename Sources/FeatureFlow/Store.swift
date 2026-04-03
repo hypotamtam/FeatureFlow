@@ -146,7 +146,7 @@ public final class Store<State: FeatureFlow.State, Action: Sendable>: @unchecked
     }
     
     public func scope<ChildState: FeatureFlow.State, ChildAction: Sendable>(
-        state childKeyPath: KeyPath<State, ChildState>,
+        state childKeyPath: KeyPath<State, ChildState> & Sendable,
         action fromChildAction: @escaping @Sendable (ChildAction) -> Action
     ) -> Store<ChildState, ChildAction> {
         let mappedStream = self.stateStream.map { state in

@@ -64,7 +64,7 @@ public final class ObservableViewStore<State: FeatureFlow.State, Action: Sendabl
     }
     
     public func scope<ChildState: FeatureFlow.State, ChildAction: Sendable>(
-        state childKeyPath: KeyPath<State, ChildState>,
+        state childKeyPath: KeyPath<State, ChildState> & Sendable,
         action fromChildAction: @escaping @Sendable (ChildAction) -> Action
     ) -> ObservableViewStore<ChildState, ChildAction> {
         let key = ScopeKey(stateKeyPath: childKeyPath, actionType: ObjectIdentifier(ChildAction.self))

@@ -19,6 +19,8 @@ public final class ViewStore<State: FeatureFlow.State, Action: Sendable>: Observ
     
     private var scopedStores: [ScopeKey: AnyWeakViewStore] = [:]
     
+    private var stateObservation: Task<Void, Never>?
+    
     private struct ScopeKey: Hashable {
         let stateKeyPath: AnyHashable
         let actionType: ObjectIdentifier
@@ -35,8 +37,6 @@ public final class ViewStore<State: FeatureFlow.State, Action: Sendable>: Observ
     public convenience init(initialState: State, flow: Flow<State, Action>) {
         self.init(store: Store(initialState: initialState, flow: flow))
     }
-        
-    private var stateObservation: Task<Void, Never>?
     
     init(store: Store<State, Action>) {
         self.store = store
@@ -59,7 +59,7 @@ public final class ViewStore<State: FeatureFlow.State, Action: Sendable>: Observ
     }
     
     public func scope<ChildState: FeatureFlow.State, ChildAction: Sendable>(
-        state childKeyPath: KeyPath<State, ChildState>,
+        state childKeyPath: KeyPath<State, ChildState> & Sendable,
         action fromChildAction: @escaping @Sendable (ChildAction) -> Action
     ) -> ViewStore<ChildState, ChildAction> {
         let key = ScopeKey(stateKeyPath: childKeyPath, actionType: ObjectIdentifier(ChildAction.self))
