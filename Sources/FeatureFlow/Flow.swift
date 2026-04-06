@@ -2,8 +2,8 @@ import Foundation
 
 public struct Flow<State: FeatureFlow.State, Action: Sendable>: Sendable {
     public struct Result: Sendable {
-        let state: State
-        let effects: [Effect<Action>]
+        package let state: State
+        package let effects: [Effect<Action>]
         
         init(state: State, effects: [Effect<Action>]) {
             self.state = state

@@ -1,4 +1,5 @@
 import Testing
+import FeatureFlowTesting
 @testable import FeatureFlow
 @testable import Demo
 
@@ -43,5 +44,27 @@ struct AppTests {
         let result = rootFlow.run(initialState, .userAction(.fetchSuccess("Alice")))
         
         #expect(result.state.user.name == "Alice")
+    }
+    
+    @MainActor
+    @Test("The app flow correctly stops the title sync with cancelSync")
+    func cancelSyncCleanning() async throws {
+        let flow = createRootFlow(clock: ImmediateClock())
+        let store = TestStore(initialState: AppState(), flow: flow)
+        
+        await store.send(.updateTitle("hello")) {
+            $0.appTitle = "hello"
+        }
+        
+        await store.send(.syncTitle) {
+            $0.isSyncing = true
+        }
+        
+        await store.send(.cancelSync) {
+            $0.isSyncing = false
+        }
+        
+        // Assert that the cancellation effect (which returns nil) finishes.
+        await store.receiveNoAction()
     }
 }

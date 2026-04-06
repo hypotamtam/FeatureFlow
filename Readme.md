@@ -9,7 +9,7 @@ The goal of FeatureFlow is to provide a predictable state management system—si
 ## Requirements
 
 - **Swift 6+** (utilizes strict concurrency features)
-- **Platforms**: iOS 13.0+, macOS 10.15+, tvOS 13.0+, watchOS 6.0+
+- **Platforms**: iOS 16.0+, macOS 13+, tvOS 16.0+, watchOS 9.0+
 
 ## Features
 

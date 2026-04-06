@@ -12,7 +12,7 @@ public struct Effect<Action: Sendable>: @unchecked Sendable {
     
     public let id: ID?
     public let policy: EffectPolicy
-    let operation: @Sendable () async -> Action?
+    package let operation: @Sendable () async -> Action?
     
     public init(
         id: ID? = nil,
