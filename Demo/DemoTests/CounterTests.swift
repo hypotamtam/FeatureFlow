@@ -30,11 +30,13 @@ final class MockCounterResetService: CounterResetServiceProtocol {
     }
     
     func emitReset() async {
-        // Latch: wait until the effect has actually subscribed to the stream.
-        var attempts = 0
-        while continuations.isEmpty && attempts < 100 {
+        // Latch: wait until the effect has actually subscribed to the stream, up to a maximum of 1 second.
+        let start = Date()
+        while continuations.isEmpty {
+            if Date().timeIntervalSince(start) > 1.0 {
+                break
+            }
             await Task.yield()
-            attempts += 1
         }
         for continuation in continuations.values {
             continuation.yield()
