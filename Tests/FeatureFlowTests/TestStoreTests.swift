@@ -120,4 +120,37 @@ struct TestStoreTests {
         // Assert that the cancellation finished without emitting the result
         await store.receiveNoAction()
     }
+
+    @MainActor
+    @Test("TestStore handles receive with triggering closure")
+    func receiveWithTriggering() async {
+        // We use a continuation to simulate a long-living stream or external event
+        let (stream, continuation) = AsyncStream<Int>.makeStream()
+        
+        let flow = Flow<TestState, TestAction> { state, action in
+            switch action {
+            case .triggerEffect:
+                return .result(state, effect: Effect {
+                    var iterator = stream.makeAsyncIterator()
+                    let value = await iterator.next() ?? 0
+                    return .effectResult(value)
+                })
+            case .effectResult(let value):
+                return .result(state.with { $0.count = value })
+            default:
+                return .result(state)
+            }
+        }
+        
+        let store = TestStore(initialState: TestState(), flow: flow)
+        
+        await store.send(.triggerEffect)
+        
+        // Use the new overload to trigger the value and receive the result in one go
+        await store.receive(.effectResult(100), triggering: {
+            continuation.yield(100)
+        }) {
+            $0.count = 100
+        }
+    }
 }

@@ -1,6 +1,7 @@
 import Testing
 import Foundation
-@testable import FeatureFlow
+import FeatureFlow
+import FeatureFlowTesting
 @testable import Demo
 
 struct MockUserService: UserServiceProtocol {
@@ -11,7 +12,7 @@ struct MockUserService: UserServiceProtocol {
     }
 }
 
-@Suite("User Domain Tests")
+@Suite("User Domain Tests", .serialized)
 struct UserTests {
     
     @Test("The initial state should have the correct default values")
@@ -24,40 +25,45 @@ struct UserTests {
 
     @MainActor
     @Test("Initiating a user fetch request should set isLoading to true")
-    func fetchRequest() {
-        var state = UserState()
-        state.error = "Previous connection error"
+    func fetchRequest() async {
+        let expectedName = "Alice"
+        Current.userService = MockUserService(result: .success(expectedName))
         
-        let result = userFlow.run(state, .fetchRequest)
+        let store = TestStore(initialState: UserState(error: "Previous connection error"), flow: userFlow)
         
-        #expect(result.state.isLoading == true)
-        #expect(result.state.error == nil)
-        #expect(result.effects.count == 1)
+        await store.send(.fetchRequest) {
+            $0.isLoading = true
+            $0.error = nil
+        }
+        
+        // Assert the background effect completes
+        await store.receive(.fetchSuccess(expectedName)) {
+            $0.isLoading = false
+            $0.name = expectedName
+        }
     }
 
     @MainActor
     @Test("A successful user fetch should update the name")
-    func fetchSuccess() {
-        var state = UserState()
-        state.isLoading = true
+    func fetchSuccess() async {
+        let store = TestStore(initialState: UserState(isLoading: true), flow: userFlow)
         
-        let result = userFlow.run(state, .fetchSuccess("Jane Doe"))
-        
-        #expect(result.state.name == "Jane Doe")
-        #expect(result.state.isLoading == false)
+        await store.send(.fetchSuccess("Jane Doe")) {
+            $0.name = "Jane Doe"
+            $0.isLoading = false
+        }
     }
 
     @MainActor
     @Test("A failed user fetch should capture the error message")
-    func fetchFailure() {
-        var state = UserState()
-        state.isLoading = true
+    func fetchFailure() async {
+        let store = TestStore(initialState: UserState(isLoading: true), flow: userFlow)
         
         let errorMessage = "Access Denied"
-        let result = userFlow.run(state, .fetchFailure(errorMessage))
-        
-        #expect(result.state.error == errorMessage)
-        #expect(result.state.isLoading == false)
+        await store.send(.fetchFailure(errorMessage)) {
+            $0.error = errorMessage
+            $0.isLoading = false
+        }
     }
 
     @MainActor
@@ -66,11 +72,15 @@ struct UserTests {
         let expectedName = "Mock Alice"
         Current.userService = MockUserService(result: .success(expectedName))
         
-        let result = userFlow.run(UserState(), .fetchRequest)
+        let store = TestStore(initialState: UserState(), flow: userFlow)
         
-        let effect = try #require(result.effects.first)
-        let nextAction = await effect.operation()
+        await store.send(.fetchRequest) {
+            $0.isLoading = true
+        }
         
-        #expect(nextAction == .fetchSuccess(expectedName))
+        await store.receive(.fetchSuccess(expectedName)) {
+            $0.isLoading = false
+            $0.name = expectedName
+        }
     }
 }

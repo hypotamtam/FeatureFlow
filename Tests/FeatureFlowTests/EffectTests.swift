@@ -52,7 +52,7 @@ struct EffectTests {
             case let .setText(val):
                 return .result(
                     state,
-                    effect: .debounce(id: "debounce-id", for: 0.3) {
+                    effect: .debounce(id: "debounce-id", for: .seconds(0.3)) {
                         .increment(val.count)
                     }
                 )
@@ -64,7 +64,7 @@ struct EffectTests {
             
         }
         
-        let store = Store(initialState: TestState(), flow: flow)
+        let store = Store<TestState, TestAction>(initialState: TestState(), flow: flow)
         var iterator = store.stateStream.dropFirst().makeAsyncIterator()
         
         // Send multiple actions rapidly

@@ -35,7 +35,7 @@ func createAppFlow(clock: any Clock<Duration>) -> Flow<AppState, AppAction> {
             }
             return .result(
                 state.with { $0.appTitle = newTitle },
-                effect: .debounce(id: "sync-title", for: 1.0) {
+                effect: .debounce(id: "sync-title", for: .seconds(1), clock: clock) {
                     return .syncTitle
                 }
             )
@@ -84,7 +84,7 @@ func createRootFlow(clock: any Clock<Duration> = ContinuousClock()) -> Flow<AppS
             toParentAction: { .userAction($0) }
         ),
         
-        counterFlow.pullback(
+        createCounterFlow(clock: clock).pullback(
             childPath: \.counter,
             toChildAction: {
                 if case .counterAction(let action) = $0 { return action }
@@ -110,5 +110,5 @@ func createRootFlow(clock: any Clock<Duration> = ContinuousClock()) -> Flow<AppS
 
 // Keep a default instance for the Demo UI to use directly
 @available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)
-let rootFlow = createRootFlow()
+let rootFlow = createRootFlow(clock: ContinuousClock())
 
