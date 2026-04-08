@@ -38,6 +38,23 @@ public struct Effect<Action: Sendable>: @unchecked Sendable {
         Effect(id: id, policy: .cancelPrevious)
     }
 
+    /// Creates an effect that waits for a time interval (in seconds) before executing.
+    /// This is compatible with older OS versions (iOS 13+, macOS 10.15+).
+    public static func debounce(
+        id: ID,
+        for interval: TimeInterval,
+        operation: @escaping Operation
+    ) -> Effect {
+        Effect(id: id, policy: .cancelPrevious) {
+            do {
+                try await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
+                return await operation()
+            } catch {
+                return nil
+            }
+        }
+    }
+
     /// Creates an effect that waits for a duration before executing using a specific clock.
     /// By default, it uses the ContinuousClock.
     @available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)
@@ -60,6 +77,25 @@ public struct Effect<Action: Sendable>: @unchecked Sendable {
     /// Creates an effect that will be ignored if an effect with the same ID is already running.
     public static func throttle(id: ID, operation: @escaping Operation) -> Effect {
         Effect(id: id, policy: .runIfMissing, operation: operation)
+    }
+
+    /// Creates an effect that will be ignored if an effect with the same ID is already running, 
+    /// unlocking the ID only after a time interval (in seconds) passes.
+    /// This is compatible with older OS versions (iOS 13+, macOS 10.15+).
+    public static func throttle(
+        id: ID,
+        for interval: TimeInterval,
+        operation: @escaping Operation
+    ) -> Effect {
+        Effect(id: id, policy: .runIfMissing) {
+            do {
+                let result = await operation()
+                try await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
+                return result
+            } catch {
+                return nil
+            }
+        }
     }
 
     /// Creates an effect that will be ignored if an effect with the same ID is already running, using a specific clock.
