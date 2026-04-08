@@ -122,6 +122,35 @@ case .sync:
     await store.receive(.syncComplete)
 }
 
+### Testing External Signals and Long-Living Streams (`triggering:`)
+When your domain logic listens to continuous streams (`AsyncStream`, `NotificationCenter`, WebSockets), you need to simulate an external event while simultaneously waiting to receive the resulting action. 
+
+If you try to trigger the event *before* receiving, you might cause a race condition. If you trigger it *after* calling `.receive()`, the test deadlocks.
+
+The `TestStore` provides an overloaded `receive(..., triggering:)` method specifically to handle this elegantly. It executes your trigger in an isolated background task concurrently with the receive loop, guaranteeing perfect synchronization without manual `Task` boilerplate.
+
+```swift
+@Test func testListeningToStream() async {
+    // 1. A mock that uses an AsyncStream internally
+    let mockService = MockService()
+    
+    let store = TestStore(initialState: State(), flow: flow)
+
+    // 2. Start the background listener
+    await store.send(.startListening)
+    
+    // 3. Emit the external signal AND seamlessly receive the resulting action!
+    // The `triggering` block runs concurrently, ensuring no deadlocks.
+    await store.receive(.dataReceived("Hello"), triggering: {
+        // Trigger the signal on the mock
+        await mockService.emitData("Hello")
+    }) {
+        // Assert the expected state change
+        $0.data = "Hello"
+    }
+}
+```
+
 ### Testing Cancellation
 To test that an effect is properly cancelled (and doesn't fire a "ghost" action later), rely on the exhaustivity of the `TestStore`.
 
