@@ -62,6 +62,54 @@ func createCounterFlow(clock: any Clock<Duration>) -> Flow<CounterState, Counter
     }
 }
 
+func createCounterFlowLegacy() -> Flow<CounterState, CounterAction> {
+    Flow<CounterState, CounterAction> { state, action in
+        switch action {
+        case .increment:
+            return .result(state.with { 
+                $0.count += 1 
+                $0.isProcessing = false
+            })
+
+        case .decrement:
+            return .result(state.with { $0.count -= 1 })
+
+        case .delayedIncrement:
+            return .result(
+                state.with { $0.isProcessing = true },
+                effect: Effect {
+                    try? await Task.sleep(nanoseconds: 1_000_000_000)
+                    return .increment
+                }
+            )
+
+        case .reset:
+            return .result(
+                state.with { $0.count = 0 },
+                effect: .waitForResetSignal()
+            )
+        
+        case .startMonitoring:
+            return .result(state, effect: Effect(id: "reset-signal") {
+                await MainActor.run {
+                    Current.counterResetService.start()
+                }
+                return await Effect.waitForResetSignalOperation()
+            })
+
+        case .stopMonitoring:
+            return .result(state, effect: Effect(id: "reset-signal", policy: .cancelPrevious) {
+                await MainActor.run() {
+                    Current.counterResetService.stop()
+                }
+                return nil
+            })
+        }
+    }
+}
+
+let counterFlowLegacy = createCounterFlowLegacy()
+
 @available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)
 let counterFlow = createCounterFlow(clock: ContinuousClock())
 

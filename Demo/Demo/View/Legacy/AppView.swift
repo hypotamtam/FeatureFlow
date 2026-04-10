@@ -1,11 +1,10 @@
 import SwiftUI
 import FeatureFlow
 
-@available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)
 struct AppView: View {
     @StateObject private var store = ViewStore<AppState, AppAction>(
         initialState: AppState(),
-        flow: rootFlow
+        flow: rootFlowLegacy
     )
     
     var body: some View {

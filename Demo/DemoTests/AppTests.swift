@@ -48,6 +48,30 @@ struct AppTests {
     }
 
     @MainActor
+    @Test("The legacy app flow updates the title correctly")
+    func updateTitleLegacy() async throws {
+        // We use the raw Store instead of TestStore for the legacy flow because the legacy flow
+        // relies on raw Task.sleep(nanoseconds:) which cannot be bypassed by an ImmediateClock.
+        let store = Store(initialState: AppState(), flow: rootFlowLegacy)
+        var iterator = store.stateStream.dropFirst().makeAsyncIterator()
+        
+        store.send(.updateTitle("New Title"))
+        
+        // 1. Immediate state update from .updateTitle
+        let immediateState = await iterator.next()
+        #expect(immediateState?.appTitle == "New Title")
+        #expect(immediateState?.isSyncing == false)
+        
+        // 2. Wait for debounce (1s) to finish, which triggers .syncTitle
+        let syncTitleState = await iterator.next()
+        #expect(syncTitleState?.isSyncing == true)
+        
+        // 3. Wait for sync (4s) to finish, which triggers .cancelSync
+        let cancelSyncState = await iterator.next()
+        #expect(cancelSyncState?.isSyncing == false)
+    }
+
+    @MainActor
     @Test("The app flow correctly pullbacks counter actions")
     func pullbackCounterAction() async {
         let store = TestStore(initialState: AppState(), flow: createRootFlow(clock: ImmediateClock()))
@@ -58,6 +82,19 @@ struct AppTests {
     }
 
     @MainActor
+    @Test("The legacy app flow correctly pullbacks counter actions")
+    func pullbackCounterActionLegacy() async throws {
+        // Legacy flow doesn't use dependency injection for clocks, so we use the raw Store.
+        let store = Store(initialState: AppState(), flow: rootFlowLegacy)
+        var iterator = store.stateStream.dropFirst().makeAsyncIterator()
+        
+        store.send(.counterAction(.increment))
+        
+        let state = await iterator.next()
+        #expect(state?.counter.count == 1)
+    }
+
+    @MainActor
     @Test("The app flow correctly pullbacks user actions")
     func pullbackUserAction() async {
         let store = TestStore(initialState: AppState(), flow: createRootFlow(clock: ImmediateClock()))
@@ -65,6 +102,19 @@ struct AppTests {
         await store.send(.userAction(.fetchSuccess("Alice"))) {
             $0.user.name = "Alice"
         }
+    }
+
+    @MainActor
+    @Test("The legacy app flow correctly pullbacks user actions")
+    func pullbackUserActionLegacy() async throws {
+        // Legacy flow doesn't use dependency injection for clocks, so we use the raw Store.
+        let store = Store(initialState: AppState(), flow: rootFlowLegacy)
+        var iterator = store.stateStream.dropFirst().makeAsyncIterator()
+        
+        store.send(.userAction(.fetchSuccess("Alice")))
+        
+        let state = await iterator.next()
+        #expect(state?.user.name == "Alice")
     }
 
 }
