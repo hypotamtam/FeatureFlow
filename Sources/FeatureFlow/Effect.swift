@@ -90,7 +90,7 @@ public struct Effect<Action: Sendable>: @unchecked Sendable {
         Effect(id: id, policy: .runIfMissing) {
             do {
                 let result = await operation()
-                try await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
+                try await Task.sleep(nanoseconds: UInt64(max(0, interval) * 1_000_000_000))
                 return result
             } catch {
                 return nil
