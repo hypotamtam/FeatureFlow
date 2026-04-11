@@ -47,7 +47,7 @@ public struct Effect<Action: Sendable>: @unchecked Sendable {
     ) -> Effect {
         Effect(id: id, policy: .cancelPrevious) {
             do {
-                try await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
+                try await Task.sleep(nanoseconds: UInt64(max(0, interval) * 1_000_000_000))
                 return await operation()
             } catch {
                 return nil
