@@ -85,6 +85,10 @@ public final class ViewStore<State: FeatureFlow.State, Action: Sendable>: Observ
         to action: @escaping @Sendable (Value) -> Action
     ) -> Binding<Value> {
         Binding(
+            // We read from store.state rather than self.state to avoid "rubber-banding" glitches.
+            // Since self.state is updated asynchronously via AsyncStream, reading from it 
+            // directly in a binding's getter could return a stale value immediately after 
+            // an action is sent, causing the UI to briefly snap back to the old value.
             get: { self.store.state[keyPath: keyPath] },
             set: { self.send(action($0)) }
         )
@@ -95,7 +99,8 @@ public final class ViewStore<State: FeatureFlow.State, Action: Sendable>: Observ
         to action: Action
     ) -> Binding<Value> {
         Binding(
-            get: { self.state[keyPath: keyPath] },
+            // We read from store.state rather than self.state to avoid "rubber-banding" glitches.
+            get: { self.store.state[keyPath: keyPath] },
             set: { _ in self.send(action) }
         )
     }

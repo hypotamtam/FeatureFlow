@@ -24,81 +24,173 @@ enum AppAction: Action, Equatable {
     case saveSettings
 }
 
-fileprivate let appFlow = Flow<AppState, AppAction> { state, action in
-    switch action {
-    case .updateTitle(let updateTitle):
-        let newTitle = updateTitle.trimmingCharacters(in: .whitespaces)
-        guard newTitle != state.appTitle else {
+@available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)
+func createAppFlow(clock: any Clock<Duration>) -> Flow<AppState, AppAction> {
+    Flow<AppState, AppAction> { state, action in
+        switch action {
+        case .updateTitle(let updateTitle):
+            let newTitle = updateTitle.trimmingCharacters(in: .whitespaces)
+            guard newTitle != state.appTitle else {
+                return .result(state)
+            }
+            return .result(
+                state.with { $0.appTitle = newTitle },
+                effect: .debounce(id: "sync-title", for: .seconds(1), clock: clock) {
+                    return .syncTitle
+                }
+            )
+            
+        case .syncTitle:
+            return .result(
+                state.with { $0.isSyncing = true },
+                effect: Effect(id: "sync-title") {
+                    try? await clock.sleep(for: .seconds(4))
+                    return .cancelSync
+                }
+            )
+            
+        case .cancelSync:
+            return .result(
+                state.with { $0.isSyncing = false },
+                effect: .cancel(id: "sync-title")
+            )
+            
+        case .saveSettings:
+            return .result(
+                state,
+                effect: .throttle(id: "save-settings") {
+                    print("Saving settings to disk...")
+                    try? await clock.sleep(for: .seconds(3))
+                    print("Settings saved!")
+                    return nil
+                }
+            )
+            
+        case .userAction, .counterAction, .settingsAction:
             return .result(state)
         }
-        return .result(
-            state.with { $0.appTitle = newTitle },
-            effect: .debounce(id: "sync-title", for: 1.0) {
-                return .syncTitle
-            }
-        )
-        
-    case .syncTitle:
-        return .result(
-            state.with { $0.isSyncing = true },
-            effect: Effect(id: "sync-title") {
-                try? await Task.sleep(nanoseconds: 4_000_000_000)
-                return .cancelSync
-            }
-        )
-        
-    case .cancelSync:
-        return .result(
-            state.with { $0.isSyncing = false },
-            effect: .cancel(id: "sync-title")
-        )
-        
-    case .saveSettings:
-        return .result(
-            state,
-            effect: .throttle(id: "save-settings") {
-                print("Saving settings to disk...")
-                try? await Task.sleep(nanoseconds: 3_000_000_000)
-                print("Settings saved!")
-                return nil
-            }
-        )
-        
-    case .userAction, .counterAction, .settingsAction:
-        return .result(state)
     }
 }
 
-let rootFlow = Flow<AppState, AppAction>.combine(
-    userFlow.pullback(
-        childPath: \.user,
-        toChildAction: { 
-            if case .userAction(let action) = $0 { return action }
-            return nil 
-        },
-        toParentAction: { .userAction($0) }
-    ),
-    
-    counterFlow.pullback(
-        childPath: \.counter,
-        toChildAction: {
-            if case .counterAction(let action) = $0 { return action }
-            return nil
-        },
-        toParentAction: { .counterAction($0) }
-    ),
-    
-    settingsFlow.pullback(
-        childPath: \.settings,
-        toChildAction: {
-            if case .settingsAction(let action) = $0 { return action }
-            return nil
-        },
-        toParentAction: { .settingsAction($0) }
-    ),
-    
-    appFlow,
-    
-    createLogFlow()
-)
+@available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)
+func createRootFlow(clock: any Clock<Duration> = ContinuousClock()) -> Flow<AppState, AppAction> {
+    Flow<AppState, AppAction>.combine(
+        userFlow.pullback(
+            childPath: \.user,
+            toChildAction: { 
+                if case .userAction(let action) = $0 { return action }
+                return nil 
+            },
+            toParentAction: { .userAction($0) }
+        ),
+        
+        createCounterFlow(clock: clock).pullback(
+            childPath: \.counter,
+            toChildAction: {
+                if case .counterAction(let action) = $0 { return action }
+                return nil
+            },
+            toParentAction: { .counterAction($0) }
+        ),
+        
+        settingsFlow.pullback(
+            childPath: \.settings,
+            toChildAction: {
+                if case .settingsAction(let action) = $0 { return action }
+                return nil
+            },
+            toParentAction: { .settingsAction($0) }
+        ),
+        
+        createAppFlow(clock: clock),
+        
+        createLogFlow()
+    )
+}
+
+func createAppFlowLegacy() -> Flow<AppState, AppAction> {
+    Flow<AppState, AppAction> { state, action in
+        switch action {
+        case .updateTitle(let updateTitle):
+            let newTitle = updateTitle.trimmingCharacters(in: .whitespaces)
+            guard newTitle != state.appTitle else {
+                return .result(state)
+            }
+            return .result(
+                state.with { $0.appTitle = newTitle },
+                effect: .debounce(id: "sync-title", for: 1.0) {
+                    return .syncTitle
+                }
+            )
+            
+        case .syncTitle:
+            return .result(
+                state.with { $0.isSyncing = true },
+                effect: Effect(id: "sync-title") {
+                    try? await Task.sleep(nanoseconds: 4_000_000_000)
+                    return .cancelSync
+                }
+            )
+            
+        case .cancelSync:
+            return .result(
+                state.with { $0.isSyncing = false },
+                effect: .cancel(id: "sync-title")
+            )
+            
+        case .saveSettings:
+            return .result(
+                state,
+                effect: .throttle(id: "save-settings", for: 3.0) {
+                    print("Saving settings to disk...")
+                    return nil
+                }
+            )
+            
+        case .userAction, .counterAction, .settingsAction:
+            return .result(state)
+        }
+    }
+}
+
+func createRootFlowLegacy() -> Flow<AppState, AppAction> {
+    Flow<AppState, AppAction>.combine(
+        userFlow.pullback(
+            childPath: \.user,
+            toChildAction: { 
+                if case .userAction(let action) = $0 { return action }
+                return nil 
+            },
+            toParentAction: { .userAction($0) }
+        ),
+        
+        counterFlowLegacy.pullback(
+            childPath: \.counter,
+            toChildAction: {
+                if case .counterAction(let action) = $0 { return action }
+                return nil
+            },
+            toParentAction: { .counterAction($0) }
+        ),
+        
+        settingsFlow.pullback(
+            childPath: \.settings,
+            toChildAction: {
+                if case .settingsAction(let action) = $0 { return action }
+                return nil
+            },
+            toParentAction: { .settingsAction($0) }
+        ),
+        
+        createAppFlowLegacy(),
+        
+        createLogFlow()
+    )
+}
+
+let rootFlowLegacy = createRootFlowLegacy()
+
+// Keep a default instance for the Demo UI to use directly
+@available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)
+let rootFlow = createRootFlow(clock: ContinuousClock())
 

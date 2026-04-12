@@ -6,9 +6,12 @@ public protocol UserServiceProtocol: Sendable {
     func fetchUser() async throws -> String
 }
 
-public protocol CounterResetServiceProtocol: Sendable {
+
+public protocol CounterResetServiceProtocol: Sendable {    
     func start()
     func stop()
+    
+    var resetNotificationEmitter: AsyncStream<Void> { get }
 }
 
 // MARK: - Dependency Container

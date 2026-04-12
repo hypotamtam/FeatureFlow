@@ -3,6 +3,7 @@
 import Testing
 import Foundation
 @testable import FeatureFlow
+import FeatureFlowTesting
 
 @Suite("Effect Tests")
 struct EffectTests {
@@ -45,8 +46,8 @@ struct EffectTests {
         #expect(store.state.count == 0)
     }
 
-    @Test("Effect.debounce only executes the last call within the window")
-    func effectDebounce() async throws {
+    @Test("Effect.debounce (Legacy) only executes the last call within the window")
+    func effectDebounceLegacy() async throws {
         let flow = Flow<TestState, TestAction> { state, action in
             switch action {
             case let .setText(val):
@@ -61,26 +62,56 @@ struct EffectTests {
             default:
                 return .result(state)
             }
-            
         }
         
-        let store = Store(initialState: TestState(), flow: flow)
+        let store = Store<TestState, TestAction>(initialState: TestState(), flow: flow)
         var iterator = store.stateStream.dropFirst().makeAsyncIterator()
         
-        // Send multiple actions rapidly
-        store.send(.setText("a"))      // 0.0s
-        try await Task.sleep(nanoseconds: 10_000_000) // 0.01s
-        store.send(.setText("ab"))     // 0.01s
-        try await Task.sleep(nanoseconds: 10_000_000) // 0.01s
-        store.send(.setText("abc"))    // 0.02s
+        store.send(.setText("a"))
+        try await Task.sleep(nanoseconds: 10_000_000)
+        store.send(.setText("ab"))
+        try await Task.sleep(nanoseconds: 10_000_000)
+        store.send(.setText("abc"))
         
-    
         let _ = await iterator.next()
         #expect(store.state.count == 3)
     }
 
-    @Test("Effect.throttle ignores subsequent calls while one is active")
-    func effectThrottle() async throws {
+    @MainActor
+    @Test("Effect.debounce (Modern) only executes the last call within the window")
+    func effectDebounceModern() async throws {
+        let flow = Flow<TestState, TestAction> { state, action in
+            switch action {
+            case let .setText(val):
+                return .result(
+                    state,
+                    effect: .debounce(id: "debounce-id", for: .seconds(0.3)) {
+                        .increment(val.count)
+                    }
+                )
+            case .increment(let val):
+                return .result(state.with { $0.count = val })
+            default:
+                return .result(state)
+            }
+        }
+        
+        let store = TestStore(initialState: TestState(), flow: flow)
+        
+        // Send multiple actions sequentially without sleeping.
+        // TestStore will instantly process them, cancelling the previous debounce effects.
+        await store.send(.setText("a"))
+        await store.send(.setText("ab"))
+        await store.send(.setText("abc"))
+        
+        // Only the last action's effect should survive the debounce window
+        await store.receive(.increment(3), timeout: 1.0) {
+            $0.count = 3
+        }
+    }
+
+    @Test("Effect.throttle (Simple) ignores subsequent calls while one is active")
+    func effectThrottleSimple() async throws {
         let flow = Flow<TestState, TestAction> { state, action in
             switch action {
             case let .increment(val):
@@ -112,6 +143,70 @@ struct EffectTests {
         
         // Only the first action (value 1) should have processed
         #expect(store.state.text == "1")
+    }
+
+    @Test("Effect.throttle (Legacy) ignores subsequent calls while one is active")
+    func effectThrottleLegacy() async throws {
+        let flow = Flow<TestState, TestAction> { state, action in
+            switch action {
+            case let .increment(val):
+                return .result(
+                    state,
+                    effect: .throttle(id: "throttle-id", for: 0.3) {
+                        return .setText("\(val)")
+                    }
+                )
+            case .setText(let text):
+                return .result(state.with { $0.text = text })
+            default:
+                return .result(state)
+            }
+        }
+        
+        let store = Store(initialState: TestState(), flow: flow)
+        
+        store.send(.increment(1))
+        try await Task.sleep(nanoseconds: 100_000_000)
+        store.send(.increment(2))
+        
+        try await Task.sleep(nanoseconds: 400_000_000)
+        #expect(store.state.text == "1")
+    }
+
+    @MainActor
+    @Test("Effect.throttle (Modern) ignores subsequent calls while one is active")
+    func effectThrottleModern() async throws {
+        let flow = Flow<TestState, TestAction> { state, action in
+            switch action {
+            case let .increment(val):
+                return .result(
+                    state,
+                    effect: .throttle(id: "throttle-id", for: .seconds(0.3)) {
+                        return .setText("\(val)")
+                    }
+                )
+            case .setText(let text):
+                return .result(state.with { $0.text = text })
+            default:
+                return .result(state)
+            }
+        }
+        
+        let store = TestStore(initialState: TestState(), flow: flow)
+        
+        // Start first throttled effect (it will sleep for 0.3s)
+        await store.send(.increment(1))
+        
+        // Attempt to send another immediately.
+        // It should be ignored entirely because the ID is active.
+        await store.send(.increment(2))
+        
+        // Ensure the FIRST action successfully finishes and updates the text
+        await store.receive(.setText("1"), timeout: 1.0) {
+            $0.text = "1"
+        }
+        
+        // TestStore deinitialization exhaustivity guarantees that .setText("2") was never emitted.
     }
     
     @Test("EffectPolicy.cancelPrevious cancels existing tasks with same ID")

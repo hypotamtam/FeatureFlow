@@ -1,6 +1,7 @@
 import Testing
 import Foundation
-@testable import FeatureFlow
+import FeatureFlow
+import FeatureFlowTesting
 @testable import Demo
 
 @MainActor
@@ -8,56 +9,153 @@ final class MockCounterResetService: CounterResetServiceProtocol {
     var startCalled = false
     var stopCalled = false
     
-    func start() { 
-        startCalled = true 
+    private(set) var isStarted = false
+    private(set) var continuations: [UUID: AsyncStream<Void>.Continuation] = [:]
+    
+    var resetNotificationEmitter: AsyncStream<Void> {
+        AsyncStream { continuation in
+            let id = UUID()
+            continuation.onTermination = { @Sendable [weak self] _ in
+                Task { @MainActor in
+                    self?.continuations[id] = nil
+                }
+            }
+            self.continuations[id] = continuation
+        }
+    }
+    
+    func start() {
+        startCalled = true
+        isStarted = true
+    }
+    
+    func emitReset() async {
+        // Latch: wait until the effect has actually subscribed to the stream, up to a maximum of 1 second.
+        let start = Date()
+        while continuations.isEmpty {
+            if Date().timeIntervalSince(start) > 1.0 {
+                break
+            }
+            await Task.yield()
+        }
+        for continuation in continuations.values {
+            continuation.yield()
+        }
     }
     
     func stop() { 
-        stopCalled = true 
+        stopCalled = true
+        isStarted = false
     }
 }
 
-@Suite("Counter Domain Tests")
+@Suite("Counter Domain Tests", .serialized)
 struct CounterTests {
     
     @MainActor
     @Test("Incrementing the counter increases the count by 1")
-    func increment() {
-        let state = counterFlow.run(CounterState(), .increment).state
-        #expect(state.count == 1)
+    func increment() async {
+        let store = TestStore(initialState: CounterState(), flow: createCounterFlow(clock: ImmediateClock()))
+        await store.send(.increment) {
+            $0.count = 1
+        }
+    }
+
+    @MainActor
+    @Test("Incrementing the legacy counter increases the count by 1")
+    func incrementLegacy() async throws {
+        // Legacy flow doesn't use dependency injection for clocks, so we use the raw Store.
+        let store = Store(initialState: CounterState(), flow: counterFlowLegacy)
+        var iterator = store.stateStream.dropFirst().makeAsyncIterator()
+        
+        store.send(.increment)
+        
+        let state = await iterator.next()
+        #expect(state?.count == 1)
     }
 
     @MainActor
     @Test("Decrementing the counter decreases the count by 1")
-    func decrement() {
-        let state = counterFlow.run(CounterState(), .decrement).state
-        #expect(state.count == -1)
+    func decrement() async {
+        let store = TestStore(initialState: CounterState(), flow: createCounterFlow(clock: ImmediateClock()))
+        await store.send(.decrement) {
+            $0.count = -1
+        }
+    }
+
+    @MainActor
+    @Test("Decrementing the legacy counter decreases the count by 1")
+    func decrementLegacy() async throws {
+        let store = Store(initialState: CounterState(), flow: counterFlowLegacy)
+        var iterator = store.stateStream.dropFirst().makeAsyncIterator()
+        
+        store.send(.decrement)
+        
+        let state = await iterator.next()
+        #expect(state?.count == -1)
     }
 
     @MainActor
     @Test("A delayed increment action should set isProcessing to true")
-    func delayedStartsLoading() {
-        let state = counterFlow.run(CounterState(), .delayedIncrement).state
-        #expect(state.isProcessing == true)
+    func delayedIncrement() async {
+        let store = TestStore(initialState: CounterState(), flow: createCounterFlow(clock: ImmediateClock()))
+        
+        await store.send(.delayedIncrement) {
+            $0.isProcessing = true
+        }
+        
+        await store.receive(.increment) {
+            $0.isProcessing = false
+            $0.count = 1
+        }
     }
 
     @MainActor
-    @Test("The delayed increment effect should eventually produce an increment action")
-    func delayedEffectReturnsIncrement() async throws {
-        let result = counterFlow.run(CounterState(), .delayedIncrement)
-        let effect = try #require(result.effects.first)
-        let nextAction = await effect.operation()
-        #expect(nextAction == .increment)
+    @Test("A legacy delayed increment action should set isProcessing to true")
+    func delayedIncrementLegacy() async throws {
+        let store = Store(initialState: CounterState(), flow: counterFlowLegacy)
+        var iterator = store.stateStream.dropFirst().makeAsyncIterator()
+        
+        store.send(.delayedIncrement)
+        
+        let processingState = await iterator.next()
+        #expect(processingState?.isProcessing == true)
+        
+        // Wait 1 second for the sleep to finish
+        let finalState = await iterator.next()
+        #expect(finalState?.count == 1)
+        #expect(finalState?.isProcessing == false)
     }
 
     @MainActor
     @Test("Resetting the counter sets count to 0 and waits for a new reset signal")
-    func reset() {
-        let state = CounterState(count: 10)
-        let result = counterFlow.run(state, .reset)
+    func reset() async {
+        let store = TestStore(initialState: CounterState(count: 10), flow: createCounterFlow(clock: ImmediateClock()))
         
-        #expect(result.state.count == 0)
-        #expect(result.effects.count == 1)
+        await store.send(.reset) {
+            $0.count = 0
+        }
+        
+        // Assert the silent effect finishes (waiting for next signal)
+        // Wait, .reset triggers .waitForResetSignal() which has an ID but is infinite.
+        // We'd need to stop monitoring to clean up.
+        await store.send(.stopMonitoring)
+        await store.receiveNoAction()
+    }
+
+    @MainActor
+    @Test("Resetting the legacy counter sets count to 0 and waits for a new reset signal")
+    func resetLegacy() async throws {
+        let store = Store(initialState: CounterState(count: 10), flow: counterFlowLegacy)
+        var iterator = store.stateStream.dropFirst().makeAsyncIterator()
+        
+        store.send(.reset)
+        
+        let resetState = await iterator.next()
+        #expect(resetState?.count == 0)
+        
+        // Stop monitoring to clean up the infinite effect in the background
+        store.send(.stopMonitoring)
     }
 
     @MainActor
@@ -66,14 +164,68 @@ struct CounterTests {
         let mock = MockCounterResetService()
         Current.counterResetService = mock
         
-        let result = counterFlow.run(CounterState(), .startMonitoring)
+        let store = TestStore(initialState: CounterState(count: 10), flow: createCounterFlow(clock: ImmediateClock()))
         
-        #expect(result.effects.count == 1)
-        let _ = await confirmation { counterServiceStared in
-            let _ = await result.effects.first?.operation()
-            counterServiceStared.confirm()
+        // 1. Start monitoring. The background task will subscribe to the stream.
+        await store.send(.startMonitoring)
+        
+        // 2. We can perform other actions while monitoring is active
+        await store.send(.increment) {
+            $0.count = 11
         }
         
+        // 3 & 4. Emit the signal and seamlessly receive the resulting action!
+        await store.receive(.reset, triggering: {
+            await mock.emitReset()
+        }) {
+            $0.count = 0
+        }
+        
+        // 5. If we received the action, the effect must have started successfully.
         #expect(mock.startCalled == true)
+        
+        // 6. Stop monitoring to cancel the infinite listener task
+        await store.send(.stopMonitoring)
+        
+        // 7. Ensure the cancellation task finishes
+        await store.receiveNoAction()
+        
+        // 8. Now we can safely assert it was stopped
+        #expect(mock.stopCalled == true)
+        
+        // Verify when a new reset signal is sent, the flow is not affected.
+        await mock.emitReset()
+    }
+
+    @MainActor
+    @Test("Starting monitoring on legacy starts the service and begins waiting for signals")
+    func startMonitoringLegacy() async throws {
+        let mock = MockCounterResetService()
+        Current.counterResetService = mock
+        
+        let store = Store(initialState: CounterState(count: 10), flow: counterFlowLegacy)
+        var iterator = store.stateStream.dropFirst().makeAsyncIterator()
+        
+        store.send(.startMonitoring)
+        #expect(mock.startCalled == true)
+        
+        // It immediately resets
+        let resetState = await iterator.next()
+        #expect(resetState?.count == 0)
+        
+        // Wait for the effect to attach to the stream
+        var attempts = 0
+        while mock.continuations.isEmpty && attempts < 100 {
+            await Task.yield()
+            attempts += 1
+        }
+        
+        await mock.emitReset()
+        
+        let notificationResetState = await iterator.next()
+        #expect(notificationResetState?.count == 0)
+        
+        store.send(.stopMonitoring)
+        #expect(mock.stopCalled == true)
     }
 }

@@ -16,14 +16,22 @@ let package = Package(
             name: "FeatureFlow",
             targets: ["FeatureFlow"]
         ),
+        .library(
+            name: "FeatureFlowTesting",
+            targets: ["FeatureFlowTesting"]
+        ),
     ],
     targets: [
         .target(
             name: "FeatureFlow"
         ),
+        .target(
+            name: "FeatureFlowTesting",
+            dependencies: ["FeatureFlow"]
+        ),
         .testTarget(
             name: "FeatureFlowTests",
-            dependencies: ["FeatureFlow"]
+            dependencies: ["FeatureFlow", "FeatureFlowTesting"]
         ),
     ]
 )

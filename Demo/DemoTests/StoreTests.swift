@@ -1,5 +1,6 @@
 import Testing
-@testable import FeatureFlow
+import FeatureFlow
+import FeatureFlowTesting
 @testable import Demo
 
 @Suite("Store Scoping Tests")
@@ -12,7 +13,7 @@ struct StoreTests {
         
         rootStore.send(.counterAction(.increment))
         
-        // Wait for the AsyncStream to propagate the change down to the child store
+        // Wait for AsyncStream propagation
         try await Task.sleep(nanoseconds: 50_000_000)
         
         #expect(scopedStore.state.count == 1)
@@ -26,7 +27,7 @@ struct StoreTests {
         
         scopedStore.send(.increment)
         
-        // Wait for the AsyncStream to propagate the change down to the child store
+        // Wait for AsyncStream propagation
         try await Task.sleep(nanoseconds: 50_000_000)
         
         #expect(rootStore.state.counter.count == 1)

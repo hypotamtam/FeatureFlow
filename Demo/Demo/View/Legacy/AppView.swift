@@ -4,7 +4,7 @@ import FeatureFlow
 struct AppView: View {
     @StateObject private var store = ViewStore<AppState, AppAction>(
         initialState: AppState(),
-        flow: rootFlow
+        flow: rootFlowLegacy
     )
     
     var body: some View {
