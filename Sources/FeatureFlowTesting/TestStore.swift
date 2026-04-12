@@ -48,13 +48,9 @@ public final class TestStore<State: FeatureFlow.State & Equatable, Action: Featu
     ) {
         if actual != expected {
             let errorMessage = """
-            \(message)
-            
-            Expected:
-            \(expected)
-            
-            Actual:
-            \(actual)
+            \(message) 
+            Expected: \(expected)
+            Actual: \(actual)
             """
             Issue.record(Comment(stringLiteral: errorMessage), sourceLocation: sourceLocation)
         }
