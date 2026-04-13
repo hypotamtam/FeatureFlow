@@ -18,7 +18,19 @@ The goal of FeatureFlow is to provide a predictable state management system simi
 - **Modern Effects**: Built-in support for asynchronous side effects using `async/await`.
 - **Composition**: Use `pullback` and `combine` to build complex features out of smaller, independent modules.
 - **Effect Management**: Native support for **Debounce**, **Throttle**, and **Cancellation** via `EffectPolicy`.
-- **Type Safety**: Leverages Swift's type system to ensure actions and states are always compatible.
+- **Type Safety** : Leverages Swift's type system to ensure actions and states are always compatible.
+
+---
+
+## Documentation
+
+Explore the detailed guides to master FeatureFlow:
+
+- [**Getting Started**](docs/GettingStarted.md): A step-by-step tutorial building your first feature.
+- [**Side Effects**](docs/SideEffects.md): Deep dive into managing async work, debouncing, and throttling with `Effect`.
+- [**Composition**](docs/Composition.md): Learn how to scale your app by nesting child features into parent domains.
+- [**Exhaustive Testing**](docs/TestStore.md): How to use `TestStore` to verify logic and background effects.
+- [**Comparison & Migration**](docs/Migration.md): How FeatureFlow compares to MVVM, TCA, and Redux.
 
 ---
 
@@ -149,6 +161,7 @@ dependencies: [
 ]
 ```
 Or in Xcode:
+
 1. Go to **File > Add Package Dependencies...**
 2. Enter the repository URL: `https://github.com/thomascassany/FeatureFlow.git`
 3. Select your desired version rules and add the package to your target.

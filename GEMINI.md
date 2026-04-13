@@ -18,10 +18,12 @@ This project is a standard Swift Package with an included iOS Demo app.
 ### Swift Package Commands
 
 *   **Build the package:**
+    
     ```bash
     swift build
     ```
 *   **Run tests:**
+    
     ```bash
     swift test
     ```
@@ -29,6 +31,7 @@ This project is a standard Swift Package with an included iOS Demo app.
 ### Demo Application
 
 The project includes a `Demo` application located in the `Demo/` directory.
+
 *   You can open `Demo/Demo.xcodeproj` or the Swift Package in Xcode.
 *   To build or run the demo, select the `Demo` scheme in Xcode.
 
