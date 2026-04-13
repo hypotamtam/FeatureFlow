@@ -26,6 +26,9 @@ struct ModernAppView: View {
                             .foregroundColor(.secondary)
                     }
                     
+                    // EDUCATIONAL: .scope creates a lightweight child store.
+                    // This guarantees ModernUserView only re-renders when the `user` state changes,
+                    // NOT when `counter` or `settings` changes.
                     ModernUserView(store: store.scope(
                         state: \.user,
                         action: { .userAction($0) }
