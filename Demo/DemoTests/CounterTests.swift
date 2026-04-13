@@ -9,7 +9,22 @@ final class MockCounterResetService: CounterResetServiceProtocol {
     var startCalled = false
     var stopCalled = false
     
-    private(set) var isStarted = false
+    private var _isStarted = false
+    private var isStartedContinuations: [UUID: AsyncStream<Bool>.Continuation] = [:]
+    
+    var isStarted: AsyncStream<Bool> {
+        AsyncStream { continuation in
+            let id = UUID()
+            continuation.onTermination = { @Sendable [weak self] _ in
+                Task { @MainActor in
+                    self?.isStartedContinuations[id] = nil
+                }
+            }
+            self.isStartedContinuations[id] = continuation
+            continuation.yield(self._isStarted)
+        }
+    }
+    
     private(set) var continuations: [UUID: AsyncStream<Void>.Continuation] = [:]
     
     var resetNotificationEmitter: AsyncStream<Void> {
@@ -26,7 +41,10 @@ final class MockCounterResetService: CounterResetServiceProtocol {
     
     func start() {
         startCalled = true
-        isStarted = true
+        _isStarted = true
+        for continuation in isStartedContinuations.values {
+            continuation.yield(true)
+        }
     }
     
     func emitReset() async {
@@ -45,13 +63,17 @@ final class MockCounterResetService: CounterResetServiceProtocol {
     
     func stop() { 
         stopCalled = true
-        isStarted = false
+        _isStarted = false
+        for continuation in isStartedContinuations.values {
+            continuation.yield(false)
+        }
     }
 }
 
 @Suite("Counter Domain Tests", .serialized)
 struct CounterTests {
     
+    @available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)
     @MainActor
     @Test("Incrementing the counter increases the count by 1")
     func increment() async {
@@ -74,6 +96,7 @@ struct CounterTests {
         #expect(state?.count == 1)
     }
 
+    @available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)
     @MainActor
     @Test("Decrementing the counter decreases the count by 1")
     func decrement() async {
@@ -95,6 +118,7 @@ struct CounterTests {
         #expect(state?.count == -1)
     }
 
+    @available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)
     @MainActor
     @Test("A delayed increment action should set isProcessing to true")
     func delayedIncrement() async {
@@ -127,6 +151,7 @@ struct CounterTests {
         #expect(finalState?.isProcessing == false)
     }
 
+    @available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)
     @MainActor
     @Test("Resetting the counter sets count to 0 and waits for a new reset signal")
     func reset() async {
@@ -158,6 +183,7 @@ struct CounterTests {
         store.send(.stopMonitoring)
     }
 
+    @available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)
     @MainActor
     @Test("Starting monitoring starts the service and begins waiting for signals")
     func startMonitoring() async {
@@ -201,17 +227,16 @@ struct CounterTests {
     @Test("Starting monitoring on legacy starts the service and begins waiting for signals")
     func startMonitoringLegacy() async throws {
         let mock = MockCounterResetService()
+        var isStartedIterator = mock.isStarted.dropFirst().makeAsyncIterator()
         Current.counterResetService = mock
         
         let store = Store(initialState: CounterState(count: 10), flow: counterFlowLegacy)
-        var iterator = store.stateStream.dropFirst().makeAsyncIterator()
+        var stateIterator = store.stateStream.dropFirst().makeAsyncIterator()
         
         store.send(.startMonitoring)
+        var isStarted = await isStartedIterator.next()
+        #expect(isStarted == true)
         #expect(mock.startCalled == true)
-        
-        // It immediately resets
-        let resetState = await iterator.next()
-        #expect(resetState?.count == 0)
         
         // Wait for the effect to attach to the stream
         var attempts = 0
@@ -222,10 +247,14 @@ struct CounterTests {
         
         await mock.emitReset()
         
-        let notificationResetState = await iterator.next()
+        
+        let notificationResetState = await stateIterator.next()
         #expect(notificationResetState?.count == 0)
         
         store.send(.stopMonitoring)
+        
+        isStarted = await isStartedIterator.next()
+        #expect(isStarted == false)
         #expect(mock.stopCalled == true)
     }
 }

@@ -21,6 +21,7 @@ struct AppTests {
         #expect(state.isGlobalLoading == false)
     }
 
+    @available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)
     @MainActor
     @Test("The app flow updates the title correctly")
     func updateTitle() async {
@@ -71,6 +72,7 @@ struct AppTests {
         #expect(cancelSyncState?.isSyncing == false)
     }
 
+    @available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)
     @MainActor
     @Test("The app flow correctly pullbacks counter actions")
     func pullbackCounterAction() async {
@@ -94,6 +96,7 @@ struct AppTests {
         #expect(state?.counter.count == 1)
     }
 
+    @available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)
     @MainActor
     @Test("The app flow correctly pullbacks user actions")
     func pullbackUserAction() async {

@@ -13,7 +13,7 @@ concurrency:
 jobs:
   test-package:
     name: Test Swift Package (iOS)
-    runs-on: macos-14
+    runs-on: macos-26
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -21,18 +21,18 @@ jobs:
       - name: Setup Xcode
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: latest-stable
+          xcode-version: '26.3'
 
       - name: Run Package Tests (iOS)
         run: |
           xcodebuild test \
             -scheme FeatureFlow \
-            -destination "platform=iOS Simulator,name=iPhone 15,OS=latest" \
+            -destination "platform=iOS Simulator,name=iPhone 17,OS=26.2" \
             OTHER_SWIFT_FLAGS="-strict-concurrency=complete"
 
   build-demo-ios:
     name: Build Demo (iOS)
-    runs-on: macos-14
+    runs-on: macos-26
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -40,21 +40,21 @@ jobs:
       - name: Setup Xcode
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: latest-stable
+          xcode-version: '26.3'
 
       - name: Build iOS Demo
         run: |
           cd Demo
           xcodebuild clean build \
             -scheme Demo \
-            -destination "platform=iOS Simulator,name=iPhone 15,OS=latest" \
+            -destination "platform=iOS Simulator,name=iPhone 17,OS=26.2" \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO
 
   build-demo-macos:
     name: Build Demo (macOS)
-    runs-on: macos-14
+    runs-on: macos-26
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -62,7 +62,7 @@ jobs:
       - name: Setup Xcode
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: latest-stable
+          xcode-version: '26.3'
 
       - name: Build macOS Demo
         run: |
@@ -76,7 +76,7 @@ jobs:
 
   test-demo-ios:
     name: Test Demo (iOS)
-    runs-on: macos-14
+    runs-on: macos-26
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -84,14 +84,14 @@ jobs:
       - name: Setup Xcode
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: latest-stable
+          xcode-version: '26.3'
 
       - name: Run Demo Tests
         run: |
           cd Demo
           xcodebuild clean test \
             -scheme Demo \
-            -destination "platform=iOS Simulator,name=iPhone 15,OS=latest" \
+            -destination "platform=iOS Simulator,name=iPhone 17,OS=26.2" \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO
