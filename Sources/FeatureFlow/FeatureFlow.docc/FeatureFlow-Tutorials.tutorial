@@ -1,0 +1,12 @@
+@Tutorials(name: "FeatureFlow-Tutorials") {
+    @Intro(title: "Discover FeatureFlow") {
+        Explore interactive tutorials to master state management in modern Swift.
+    }
+    
+    @Chapter(name: "Essentials") {
+        Learn the basics of State, Action, and Flow.
+        
+        @TutorialReference(tutorial: "doc:BuildingCounter")
+        @TutorialReference(tutorial: "doc:BuildingSearch")
+    }
+}

@@ -1,0 +1,47 @@
+@Tutorial(time: 5) {
+    @Intro(title: "Handling Side Effects & Debounce") {
+        Learn how to manage complex asynchronous operations, like debouncing search input to prevent spamming an API, using FeatureFlow's built-in `Effect` policies.
+    }
+    
+    @Section(title: "Define the Search Domain") {
+        @ContentAndMedia {
+            We start by defining the State and Action for a search screen.
+        }
+        
+        @Steps {
+            @Step {
+                We need to track the user's query, whether we are currently searching, and the results from the API.
+                
+                @Code(name: "Search.swift", file: "Search-Step1.swift")
+            }
+        }
+    }
+    
+    @Section(title: "Implement Debounce Logic") {
+        @ContentAndMedia {
+            Next, we write the Flow logic. When the user types, we want to wait 0.5 seconds before hitting the API. If they type again within that window, we cancel the old request.
+        }
+        
+        @Steps {
+            @Step {
+                FeatureFlow handles this automatically using `.debounce(id:for:operation:)`. By providing a unique `id` ("search-api"), the Store automatically cancels the previous effect every time a new key is pressed.
+                
+                @Code(name: "Search.swift", file: "Search-Step2.swift")
+            }
+        }
+    }
+    
+    @Section(title: "Bind to a TextField") {
+        @ContentAndMedia {
+            Finally, we connect our Flow to a SwiftUI `TextField` using a binding.
+        }
+        
+        @Steps {
+            @Step {
+                The `viewStore.binding` method automatically converts the updated text from the user into a `.queryChanged` action and dispatches it into our Flow.
+                
+                @Code(name: "Search.swift", file: "Search-Step3.swift")
+            }
+        }
+    }
+}

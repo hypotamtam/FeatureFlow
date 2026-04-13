@@ -16,6 +16,10 @@ FeatureFlow revolves around a few core concepts:
 
 ## Topics
 
+### Tutorials
+
+- <doc:FeatureFlow-Tutorials>
+
 ### Core Types
 
 - ``State``
@@ -28,9 +32,3 @@ FeatureFlow revolves around a few core concepts:
 
 - ``ObservableViewStore``
 - ``ViewStore``
-
-### Testing
-
-FeatureFlow includes a dedicated module, `FeatureFlowTesting`, for rigorous deterministic testing.
-
-- ``FeatureFlowTesting/TestStore``

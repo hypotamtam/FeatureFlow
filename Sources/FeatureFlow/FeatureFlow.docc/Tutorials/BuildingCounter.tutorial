@@ -1,0 +1,53 @@
+@Tutorial(time: 5) {
+    @Intro(title: "Building a Counter") {
+        Learn how to build a unidirectional Counter using FeatureFlow. You'll define state, actions, and connect them to a SwiftUI view.
+    }
+    
+    @Section(title: "Define the Domain") {
+        @ContentAndMedia {
+            Every feature starts by defining what the user sees (`State`) and what the user does (`Action`).
+        }
+        
+        @Steps {
+            @Step {
+                First, define a struct that conforms to `State` to hold our count.
+                
+                @Code(name: "Counter.swift", file: "Counter-Step1.swift")
+            }
+            
+            @Step {
+                Next, define an `Action` enum for the buttons the user can tap.
+                
+                @Code(name: "Counter.swift", file: "Counter-Step2.swift")
+            }
+        }
+    }
+    
+    @Section(title: "Write the Logic") {
+        @ContentAndMedia {
+            Now, let's write the `Flow` to define how the state changes when those actions are received.
+        }
+        
+        @Steps {
+            @Step {
+                Create a `Flow` instance and implement the pure function to handle the increments and decrements. We use the `.with` helper to safely mutate a copy of the state.
+                
+                @Code(name: "Counter.swift", file: "Counter-Step3.swift")
+            }
+        }
+    }
+    
+    @Section(title: "Connect to SwiftUI") {
+        @ContentAndMedia {
+            Finally, we'll wrap our `Store` in an `ObservableViewStore` to automatically drive a SwiftUI view.
+        }
+        
+        @Steps {
+            @Step {
+                Add a SwiftUI view and hook up the buttons to send actions to the `viewStore`. 
+                
+                @Code(name: "Counter.swift", file: "Counter-Step4.swift")
+            }
+        }
+    }
+}
