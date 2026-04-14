@@ -5,6 +5,20 @@ import Combine
 import Foundation
 @testable import FeatureFlow
 
+extension ViewStore {
+    @MainActor
+    func waitForNextStateUpdate(action: () -> Void) async {
+        var cancellable: AnyCancellable?
+        await withCheckedContinuation { continuation in
+            cancellable = self.$state.dropFirst().first().sink { state in
+                continuation.resume()
+            }
+            action()
+        }
+        cancellable?.cancel()
+    }
+}
+
 @Suite("ViewStore Tests")
 struct ViewStoreTests {
 
@@ -15,10 +29,9 @@ struct ViewStoreTests {
         
         #expect(viewStore.state.count == 0)
         
-        viewStore.send(.increment(5))
-        
-        // Wait for AsyncStream to process
-        try await Task.sleep(nanoseconds: 50_000_000)
+        await viewStore.waitForNextStateUpdate {
+            viewStore.send(.increment(5))
+        }
         
         #expect(viewStore.state.count == 5)
     }
@@ -30,15 +43,10 @@ struct ViewStoreTests {
         
         let binding = viewStore.binding(\.text, to: { .setText($0) })
         
-        binding.wrappedValue = "New Value"
-        
-        var isDone = false
-        var sleepTime = 0
-        while isDone == false {
-            try await Task.sleep(nanoseconds: 10_000)
-            sleepTime += 10_000
-            isDone = (viewStore.state.text == "New Value") || (sleepTime == 100_000)
+        await viewStore.waitForNextStateUpdate {
+            binding.wrappedValue = "New Value"
         }
+        
         #expect(viewStore.state.text == "New Value")
     }
 
@@ -97,9 +105,10 @@ struct ViewStoreTests {
         
         #expect(binding.wrappedValue == 0)
         
-        binding.wrappedValue = 999 // Value doesn't matter for constant action
+        await viewStore.waitForNextStateUpdate {
+            binding.wrappedValue = 999 // Value doesn't matter for constant action
+        }
         
-        try await Task.sleep(nanoseconds: 50_000_000)
         #expect(viewStore.state.count == 10)
     }
 
@@ -114,30 +123,24 @@ struct ViewStoreTests {
         }
         
         // Initial change
-        viewStore.send(.setText("First"))
-        
-        // Yield to allow the Combine pipeline (which receives on Main thread) to process
-        try await Task.sleep(nanoseconds: 50_000_000)
+        await viewStore.waitForNextStateUpdate {
+            viewStore.send(.setText("First"))
+        }
         
         // This should trigger a publish because the state changed from "" to "First"
         #expect(publishCount == 1)
         
-        // Send the exact same action multiple times
-        viewStore.send(.setText("First"))
-        viewStore.send(.setText("First"))
-        viewStore.send(.setText("First"))
+        // Send the exact same action multiple times, followed by a new change
+        await viewStore.waitForNextStateUpdate {
+            viewStore.send(.setText("First"))
+            viewStore.send(.setText("First"))
+            viewStore.send(.setText("First"))
+            viewStore.send(.setText("Second"))
+        }
         
-        try await Task.sleep(nanoseconds: 50_000_000)
-        
-        // The count should still be 1 because .removeDuplicates() caught the identical state updates
-        #expect(publishCount == 1)
-        
-        // Send a new change to verify it can still update
-        viewStore.send(.setText("Second"))
-        
-        try await Task.sleep(nanoseconds: 50_000_000)
-        
+        // The count should only be 2 because identical updates were dropped
         #expect(publishCount == 2)
+        #expect(viewStore.state.text == "Second")
         
         // Keep a reference so it's not deallocated early
         _ = cancellable
