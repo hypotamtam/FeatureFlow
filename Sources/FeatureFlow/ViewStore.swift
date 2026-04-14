@@ -6,6 +6,10 @@ private protocol AnyWeakViewStore {
     var isAlive: Bool { get }
 }
 
+/// A SwiftUI wrapper for `Store` that leverages the older `@ObservedObject` protocol.
+///
+/// Use `ViewStore` to connect your feature's state and actions to a SwiftUI view in 
+/// OS versions prior to iOS 17 / macOS 14. For newer platforms, prefer `ObservableViewStore`.
 @available(iOS, deprecated: 17.0, message: "Use ObservableViewStore for better performance and modern SwiftUI support.")
 @available(macOS, deprecated: 14.0, message: "Use ObservableViewStore for better performance and modern SwiftUI support.")
 @available(tvOS, deprecated: 17.0, message: "Use ObservableViewStore for better performance and modern SwiftUI support.")
@@ -13,6 +17,7 @@ private protocol AnyWeakViewStore {
 @MainActor
 public final class ViewStore<State: FeatureFlow.State, Action: Sendable>: ObservableObject {
     
+    /// The current state of the feature. View updates are triggered when this property changes.
     @Published public private(set) var state: State
     
     private let store: Store<State, Action>
@@ -34,6 +39,11 @@ public final class ViewStore<State: FeatureFlow.State, Action: Sendable>: Observ
         var isAlive: Bool { store != nil }
     }
     
+    /// Initializes a new view store with a starting state and a flow.
+    ///
+    /// - Parameters:
+    ///   - initialState: The starting state of the feature.
+    ///   - flow: The business logic that determines how the state changes in response to actions.
     public convenience init(initialState: State, flow: Flow<State, Action>) {
         self.init(store: Store(initialState: initialState, flow: flow))
     }
@@ -54,10 +64,19 @@ public final class ViewStore<State: FeatureFlow.State, Action: Sendable>: Observ
         stateObservation?.cancel()
     }
     
+    /// Sends an action to the underlying store.
+    ///
+    /// - Parameter action: The action to perform.
     public func send(_ action: Action) {
         store.send(action)
     }
     
+    /// Creates a child view store scoped to a specific domain.
+    ///
+    /// - Parameters:
+    ///   - childKeyPath: A key path extracting the child state from the parent state.
+    ///   - fromChildAction: A closure wrapping a child action into a parent action.
+    /// - Returns: A new `ViewStore` operating on the child domain.
     public func scope<ChildState: FeatureFlow.State, ChildAction: Sendable>(
         state childKeyPath: KeyPath<State, ChildState> & Sendable,
         action fromChildAction: @escaping @Sendable (ChildAction) -> Action
@@ -80,6 +99,14 @@ public final class ViewStore<State: FeatureFlow.State, Action: Sendable>: Observ
         return scopedStore
     }
 
+    /// Creates a standard SwiftUI `Binding` for a property in the state.
+    ///
+    /// The setter of this binding dispatches an action back to the store.
+    ///
+    /// - Parameters:
+    ///   - keyPath: A key path to a value inside the state.
+    ///   - action: A closure that takes the new value and returns an action to dispatch.
+    /// - Returns: A SwiftUI binding.
     public func binding<Value>(
         _ keyPath: KeyPath<State, Value>,
         to action: @escaping @Sendable (Value) -> Action
@@ -94,6 +121,12 @@ public final class ViewStore<State: FeatureFlow.State, Action: Sendable>: Observ
         )
     }
 
+    /// Creates a standard SwiftUI `Binding` for a property in the state, dispatching a constant action on change.
+    ///
+    /// - Parameters:
+    ///   - keyPath: A key path to a value inside the state.
+    ///   - action: The action to dispatch whenever the binding is modified.
+    /// - Returns: A SwiftUI binding.
     public func binding<Value>(
         _ keyPath: KeyPath<State, Value>,
         to action: Action

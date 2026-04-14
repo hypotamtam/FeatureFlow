@@ -77,6 +77,7 @@ struct EffectTests {
         #expect(store.state.count == 3)
     }
 
+    @available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)
     @MainActor
     @Test("Effect.debounce (Modern) only executes the last call within the window")
     func effectDebounceModern() async throws {
@@ -85,7 +86,7 @@ struct EffectTests {
             case let .setText(val):
                 return .result(
                     state,
-                    effect: .debounce(id: "debounce-id", for: .seconds(0.3)) {
+                    effect: .debounce(id: "debounce-id", for: .seconds(3), clock: ImmediateClock()) {
                         .increment(val.count)
                     }
                 )
@@ -173,6 +174,7 @@ struct EffectTests {
         #expect(store.state.text == "1")
     }
 
+    @available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)
     @MainActor
     @Test("Effect.throttle (Modern) ignores subsequent calls while one is active")
     func effectThrottleModern() async throws {
@@ -181,7 +183,7 @@ struct EffectTests {
             case let .increment(val):
                 return .result(
                     state,
-                    effect: .throttle(id: "throttle-id", for: .seconds(0.3)) {
+                    effect: .throttle(id: "throttle-id", for: .seconds(3), clock: ImmediateClock()) {
                         return .setText("\(val)")
                     }
                 )

@@ -24,6 +24,8 @@ struct ModernCounterView: View {
             }
         }
         .onAppear(perform: {
+            // EDUCATIONAL: Triggers a side-effect (like an analytics event or a timer) 
+            // when the view appears.
             if didStart == false {
                 store.send(.startMonitoring)
             }

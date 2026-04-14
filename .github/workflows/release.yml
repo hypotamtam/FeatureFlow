@@ -1,0 +1,44 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - '*.*.*' # Trigger on semantic version tags, e.g., 1.0.0, 2.1.0
+
+jobs:
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Required to create the release
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract Release Notes from CHANGELOG
+        id: extract_notes
+        run: |
+          # Get the tag name (e.g., "1.0.0")
+          VERSION="${GITHUB_REF_NAME}"
+          echo "Extracting notes for version: $VERSION"
+          
+          # Use awk to extract the section between "## <VERSION>" and the next "## "
+          # We use a temporary file to store the extracted notes
+          awk -v ver="## $VERSION" '
+            $0 == ver { flag=1; next } 
+            /^## / && flag { flag=0; exit } 
+            flag { print }
+          ' CHANGELOG.md > release_notes.txt
+          
+          # Remove leading/trailing empty lines
+          sed -i -e '/./,$!d' -e :a -e '/^\n*$/{$d;N;ba' -e '}' release_notes.txt
+          
+          echo "notes_file=release_notes.txt" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ github.ref_name }}
+          body_path: ${{ steps.extract_notes.outputs.notes_file }}
+          draft: false
+          prerelease: false
