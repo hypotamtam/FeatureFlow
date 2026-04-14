@@ -216,7 +216,7 @@ struct EffectTests {
         await store.send(.asyncIncrement(id: "id", policy: .runIfMissing, value: 1))
         
         // Send second one immediately - should be ignored
-        await store.send(.asyncIncrement(id: "id", policy: .runIfMissing, value: 1))
+        await store.send(.asyncIncrement(id: "id", policy: .runIfMissing, value: 2))
         
         await store.receive(.increment(1)) {
             $0.count = 1
