@@ -25,12 +25,12 @@ jobs:
     runs-on: macos-26
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Swift
         uses: swift-actions/setup-swift@v2
         with:
-          swift-version: "6.0"
+          swift-version: "6.2"
 
       - name: Build DocC documentation
         run: |
@@ -40,11 +40,15 @@ jobs:
             --transform-for-static-hosting \
             --hosting-base-path FeatureFlow
 
+      - name: Fix root redirect
+        run: |
+          echo '<meta http-equiv="refresh" content="0; url=documentation/featureflow">' > docs-out/index.html
+
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v5.0.0
         with:
           path: 'docs-out'
 
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5.0.0
