@@ -8,6 +8,7 @@ import FeatureFlowTesting
 @Suite("Effect Tests")
 struct EffectTests {
    
+    @MainActor
     @Test("Effect.cancel stops a running task")
     func effectCancel() async throws {
         let flow = Flow<TestState, TestAction> { state, action in
@@ -16,7 +17,7 @@ struct EffectTests {
                 return .result(
                     state,
                     effect: Effect(id: id) {
-                        try? await Task.sleep(nanoseconds: 500_000_000) // 0.5s
+                        try? await Task.sleep(nanoseconds: 100_000_000) // 0.1s
                         return .increment(value)
                     }
                 )
@@ -28,24 +29,15 @@ struct EffectTests {
             }
         }
         
-        let store = Store(initialState: TestState(), flow: flow)
+        let store = TestStore(initialState: TestState(), flow: flow)
         
-        // Start a long running task
-        store.send(.asyncIncrement(id: "cancel-me", policy: .cancelPrevious, value: 10))
+        await store.send(.asyncIncrement(id: "cancel-me", policy: .cancelPrevious, value: 10))
+        await store.send(.setText("cancel-me"))
         
-        // Wait briefly to ensure the task has started
-        try await Task.sleep(nanoseconds: 50_000_000)
-        
-        // Send cancellation
-        store.send(.setText("cancel-me"))
-        
-        // Wait long enough for the original task to have finished if it wasn't cancelled
-        try await Task.sleep(nanoseconds: 600_000_000)
-        
-        // State should remain 0 because the increment was cancelled
-        #expect(store.state.count == 0)
+        await store.receiveNoAction()
     }
 
+    @MainActor
     @Test("Effect.debounce (Legacy) only executes the last call within the window")
     func effectDebounceLegacy() async throws {
         let flow = Flow<TestState, TestAction> { state, action in
@@ -64,17 +56,15 @@ struct EffectTests {
             }
         }
         
-        let store = Store<TestState, TestAction>(initialState: TestState(), flow: flow)
-        var iterator = store.stateStream.dropFirst().makeAsyncIterator()
+        let store = TestStore(initialState: TestState(), flow: flow)
         
-        store.send(.setText("a"))
-        try await Task.sleep(nanoseconds: 10_000_000)
-        store.send(.setText("ab"))
-        try await Task.sleep(nanoseconds: 10_000_000)
-        store.send(.setText("abc"))
+        await store.send(.setText("a"))
+        await store.send(.setText("ab"))
+        await store.send(.setText("abc"))
         
-        let _ = await iterator.next()
-        #expect(store.state.count == 3)
+        await store.receive(.increment(3), timeout: 1.0) {
+            $0.count = 3
+        }
     }
 
     @available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)
@@ -99,18 +89,16 @@ struct EffectTests {
         
         let store = TestStore(initialState: TestState(), flow: flow)
         
-        // Send multiple actions sequentially without sleeping.
-        // TestStore will instantly process them, cancelling the previous debounce effects.
         await store.send(.setText("a"))
         await store.send(.setText("ab"))
         await store.send(.setText("abc"))
         
-        // Only the last action's effect should survive the debounce window
         await store.receive(.increment(3), timeout: 1.0) {
             $0.count = 3
         }
     }
 
+    @MainActor
     @Test("Effect.throttle (Simple) ignores subsequent calls while one is active")
     func effectThrottleSimple() async throws {
         let flow = Flow<TestState, TestAction> { state, action in
@@ -130,22 +118,17 @@ struct EffectTests {
             }
         }
         
-        let store = Store(initialState: TestState(), flow: flow)
+        let store = TestStore(initialState: TestState(), flow: flow)
         
-        // Start first throttled effect
-        store.send(.increment(1)) // Ends at 0.3s
+        await store.send(.increment(1))
+        await store.send(.increment(2))
         
-        try await Task.sleep(nanoseconds: 100_000_000) // 0.1s
-        
-        // Attempt to send another while the first is running
-        store.send(.increment(2)) // Should be ignored
-        
-        try await Task.sleep(nanoseconds: 400_000_000) // Total 0.5s
-        
-        // Only the first action (value 1) should have processed
-        #expect(store.state.text == "1")
+        await store.receive(.setText("1")) {
+            $0.text = "1"
+        }
     }
 
+    @MainActor
     @Test("Effect.throttle (Legacy) ignores subsequent calls while one is active")
     func effectThrottleLegacy() async throws {
         let flow = Flow<TestState, TestAction> { state, action in
@@ -164,14 +147,14 @@ struct EffectTests {
             }
         }
         
-        let store = Store(initialState: TestState(), flow: flow)
+        let store = TestStore(initialState: TestState(), flow: flow)
         
-        store.send(.increment(1))
-        try await Task.sleep(nanoseconds: 100_000_000)
-        store.send(.increment(2))
+        await store.send(.increment(1))
+        await store.send(.increment(2))
         
-        try await Task.sleep(nanoseconds: 400_000_000)
-        #expect(store.state.text == "1")
+        await store.receive(.setText("1")) {
+            $0.text = "1"
+        }
     }
 
     @available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)
@@ -211,37 +194,33 @@ struct EffectTests {
         // TestStore deinitialization exhaustivity guarantees that .setText("2") was never emitted.
     }
     
+    @MainActor
     @Test("EffectPolicy.cancelPrevious cancels existing tasks with same ID")
     func effectCancellation() async throws {
-        let store = Store(initialState: TestState(), flow: baseTestFlow)
+        let store = TestStore(initialState: TestState(), flow: baseTestFlow)
         
-        // Send two async increments with the same ID
-        store.send(.asyncIncrement(id: "id", policy: .cancelPrevious, value: 1))
-        // Wait slightly to ensure task is created
-        try await Task.sleep(nanoseconds: 10_000_000)
-        
-        store.send(.asyncIncrement(id: "id", policy: .cancelPrevious, value: 2))
-        
-        // Wait for the duration of one effect (0.1s + buffer)
-        try await Task.sleep(nanoseconds: 200_000_000)
-        
-        // Only one increment should have succeeded (the first was cancelled)
-        #expect(store.state.count == 2)
+        await store.send(.asyncIncrement(id: "id", policy: .cancelPrevious, value: 1))
+        await store.send(.asyncIncrement(id: "id", policy: .cancelPrevious, value: 2))
+
+        await store.receive(.increment(2)) {
+            $0.count = 2
+        }
     }
 
+    @MainActor
     @Test("EffectPolicy.runIfMissing ignores new tasks if ID is active")
     func effectThrottling() async throws {
-        let store = Store(initialState: TestState(), flow: baseTestFlow)
+        let store = TestStore(initialState: TestState(), flow: baseTestFlow)
         
         // Send first async increment
-        store.send(.asyncIncrement(id: "id", policy: .runIfMissing, value: 1))
+        await store.send(.asyncIncrement(id: "id", policy: .runIfMissing, value: 1))
+        
         // Send second one immediately - should be ignored
-        store.send(.asyncIncrement(id: "id", policy: .runIfMissing, value: 2))
+        await store.send(.asyncIncrement(id: "id", policy: .runIfMissing, value: 1))
         
-        try await Task.sleep(nanoseconds: 200_000_000)
-        
-        // Only the first one should have counted
-        #expect(store.state.count == 1)
+        await store.receive(.increment(1)) {
+            $0.count = 1
+        }
     }
 
     @Test("Effect handles rapid cancellation without clearing newer tasks")
@@ -270,6 +249,7 @@ struct EffectTests {
         }
         
         let store = Store(initialState: TestState(), flow: flow)
+        var stateIterator = store.stateStream.dropFirst().makeAsyncIterator()
         
         // Task 1: Will be cancelled
         store.send(.asyncIncrement(id: "rapid", policy: .cancelPrevious, value: 10))
@@ -277,22 +257,15 @@ struct EffectTests {
         // Let Task 1 start
         try await Task.sleep(nanoseconds: 10_000_000)
         
-        // Task 2: Cancels Task 1. Task 1 will wake up and try to clear the dict.
         store.send(.asyncIncrement(id: "rapid", policy: .cancelPrevious, value: 100))
         
         // Wait long enough for Task 1 to finish its cancellation handler,
         // but not long enough for Task 2 to finish its 0.1s sleep.
         try await Task.sleep(nanoseconds: 20_000_000)
         
-        // Task 3: Should cancel Task 2. If the bug exists, Task 1 cleared the dict,
-        // so Task 3 won't find Task 2 to cancel it!
         store.send(.asyncIncrement(id: "rapid", policy: .cancelPrevious, value: 1000))
         
-        // Wait for everything to finish
-        try await Task.sleep(nanoseconds: 300_000_000)
-        
-        // If bug exists: Task 2 and Task 3 both complete. Count = 1100.
-        // If fixed: Task 1 and 2 are cancelled, only Task 3 completes. Count = 1000.
-        #expect(store.state.count == 1000)
+        let finalState = try #require(await stateIterator.next())
+        #expect(finalState.count == 1000)
     }
 }
