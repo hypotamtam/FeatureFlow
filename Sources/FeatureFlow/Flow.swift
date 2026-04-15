@@ -28,6 +28,51 @@ public struct Flow<State: FeatureFlow.State, Action: Sendable>: Sendable {
     public init(run: @escaping @Sendable (State, Action) -> Result) {
         self.run = run
     }
+
+    /// Creates a combined `Flow` using a declarative result builder.
+    public init(@FlowBuilder<State, Action> _ builder: () -> Flow<State, Action>) {
+        self = builder()
+    }
+}
+
+@resultBuilder
+public enum FlowBuilder<State: FeatureFlow.State, Action: Sendable> {
+    
+    /// Supports direct use of flows within the builder.
+    public static func buildExpression(_ expression: Flow<State, Action>) -> Flow<State, Action> {
+        expression
+    }
+
+    /// Combines multiple flows sequentially.
+    public static func buildBlock(_ components: Flow<State, Action>...) -> Flow<State, Action> {
+        Flow { state, action in
+            var currentState = state
+            var allEffects: [Effect<Action>] = []
+
+            for flow in components {
+                let result = flow.run(currentState, action)
+                currentState = result.state
+                allEffects.append(contentsOf: result.effects)
+            }
+
+            return .result(currentState, effects: allEffects)
+        }
+    }
+    
+    /// Adds support for `if` statements without an `else`.
+    public static func buildOptional(_ component: Flow<State, Action>?) -> Flow<State, Action> {
+        component ?? Flow { state, _ in .result(state) }
+    }
+    
+    /// Adds support for `if`/`else` statements (true branch).
+    public static func buildEither(first component: Flow<State, Action>) -> Flow<State, Action> {
+        component
+    }
+    
+    /// Adds support for `if`/`else` statements (false branch).
+    public static func buildEither(second component: Flow<State, Action>) -> Flow<State, Action> {
+        component
+    }
 }
 
 extension Flow.Result {
@@ -76,28 +121,6 @@ public extension Flow {
                 newParentState,
                 effects: result.effects.map { $0.map(transform: toParentAction) }
             )
-        }
-    }
-
-    /// Combines multiple flows of the same domain into a single flow.
-    ///
-    /// The combined flow runs the provided flows sequentially. The mutated state from the first flow
-    /// is passed to the second, and all resulting effects are merged.
-    ///
-    /// - Parameter flows: A variadic list of flows to combine.
-    /// - Returns: A single merged `Flow`.
-    static func combine(_ flows: Flow<State, Action>...) -> Self {
-        Flow { state, action in
-            var currentState = state
-            var allEffects: [Effect<Action>] = []
-
-            for flow in flows {
-                let result = flow.run(currentState, action)
-                currentState = result.state
-                allEffects.append(contentsOf: result.effects)
-            }
-
-            return .result(currentState, effects: allEffects)
         }
     }
 }

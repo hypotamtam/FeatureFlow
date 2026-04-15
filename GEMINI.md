@@ -9,7 +9,7 @@
 *   **Flow:** Contains the pure business logic. It takes the current `State` and an `Action`, and returns a `Result` (the new state and optional side effects).
 *   **Effect:** Handles asynchronous side effects using `async/await`. Supports effect management policies like Debounce, Throttle, Cancellation (`cancelPrevious`), and `runIfMissing`.
 *   **Store:** The runtime container that holds the state, receives actions, runs them through the `Flow`, updates the state, and concurrently executes any resulting `Effect`s.
-*   **Composition:** Complex features are built by combining smaller, independent flows using `pullback` and `combine`.
+*   **Composition:** Complex features are built by combining smaller, independent flows using `pullback` and a declarative `Flow` builder.
 
 ## Building and Testing
 

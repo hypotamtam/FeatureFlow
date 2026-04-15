@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **FeatureFlow Core**: Introduced `State`, `Action`, and `Flow` protocols/structs for managing unidirectional data flow.
 - **Side Effects**: Introduced `Effect` wrapper for `async/await` side effects.
 - **Effect Policies**: Added `.cancelPrevious` (default/debounce) and `.runIfMissing` (throttle) policies to easily manage complex async task lifetimes.
-- **Composition**: Implemented `.pullback` and `.combine` to allow scaling the architecture across multiple isolated domain modules.
+- **Composition**: Implemented `.pullback` and a declarative `Flow` builder to allow scaling the architecture across multiple isolated domain modules.
 - **SwiftUI Integration**: Added `ObservableViewStore` (iOS 17+) and `ViewStore` (iOS 16) to automatically synchronize FeatureFlow state to SwiftUI Views.
 - **Store Scoping**: Added `.scope` to `Store` and View Stores to prevent over-rendering of child views.
 - **Two-Way Bindings**: Added `.binding` helpers to effortlessly connect SwiftUI controls (like `TextField` and `Toggle`) to `Action` dispatches.
