@@ -98,6 +98,22 @@ public final class ObservableViewStore<State: FeatureFlow.State, Action: Sendabl
         store.send(action)
     }
     
+    /// Creates a child view store scoped to a specific domain using a `CasePath`.
+    ///
+    /// - Parameters:
+    ///   - childKeyPath: A key path extracting the child state from the parent state.
+    ///   - casePath: A case path for embedding the child action into the parent action.
+    /// - Returns: A new `ObservableViewStore` operating on the child domain.
+    public func scope<ChildState: FeatureFlow.State, ChildAction: Sendable>(
+        state childKeyPath: KeyPath<State, ChildState> & Sendable,
+        action casePath: CasePath<Action, ChildAction>
+    ) -> ObservableViewStore<ChildState, ChildAction> {
+        self.scope(
+            state: childKeyPath,
+            action: casePath.embed
+        )
+    }
+
     /// Creates a child view store scoped to a specific domain.
     ///
     /// - Parameters:

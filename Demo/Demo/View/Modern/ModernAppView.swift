@@ -29,19 +29,20 @@ struct ModernAppView: View {
                     // EDUCATIONAL: .scope creates a lightweight child store.
                     // This guarantees ModernUserView only re-renders when the `user` state changes,
                     // NOT when `counter` or `settings` changes.
+                    // By using CasePaths, we avoid manual action mapping closures.
                     ModernUserView(store: store.scope(
                         state: \.user,
-                        action: { .userAction($0) }
+                        action: AppAction.Cases.userAction
                     ))
                     
                     ModernCounterView(store: store.scope(
                         state: \.counter,
-                        action: { .counterAction($0) }
+                        action: AppAction.Cases.counterAction
                     ))
                     
                     ModernSettingsView(store: store.scope(
                         state: \.settings,
-                        action: { .settingsAction($0) }
+                        action: AppAction.Cases.settingsAction
                     ))
                 }
                 #if os(iOS)

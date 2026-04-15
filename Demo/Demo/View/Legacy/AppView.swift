@@ -27,17 +27,17 @@ struct AppView: View {
                         
                         UserView(store: store.scope(
                             state: \.user,
-                            action: { .userAction($0) }
+                            action: AppAction.Cases.userAction
                         ))
                         
                         CounterView(store: store.scope(
                             state: \.counter,
-                            action: { .counterAction($0) }
+                            action: AppAction.Cases.counterAction
                         ))
                         
                         SettingsView(store: store.scope(
                             state: \.settings,
-                            action: { .settingsAction($0) }
+                            action: AppAction.Cases.settingsAction
                         ))
                     }
                     #if os(iOS)
