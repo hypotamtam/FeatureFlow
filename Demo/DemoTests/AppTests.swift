@@ -51,23 +51,18 @@ struct AppTests {
     @MainActor
     @Test("The legacy app flow updates the title correctly")
     func updateTitleLegacy() async throws {
-        // We use the raw Store instead of TestStore for the legacy flow because the legacy flow
-        // relies on raw Task.sleep(nanoseconds:) which cannot be bypassed by an ImmediateClock.
         let store = Store(initialState: AppState(), flow: rootFlowLegacy)
         var iterator = store.stateStream.dropFirst().makeAsyncIterator()
         
         store.send(.updateTitle("New Title"))
         
-        // 1. Immediate state update from .updateTitle
         let immediateState = await iterator.next()
         #expect(immediateState?.appTitle == "New Title")
         #expect(immediateState?.isSyncing == false)
         
-        // 2. Wait for debounce (1s) to finish, which triggers .syncTitle
         let syncTitleState = await iterator.next()
         #expect(syncTitleState?.isSyncing == true)
         
-        // 3. Wait for sync (4s) to finish, which triggers .cancelSync
         let cancelSyncState = await iterator.next()
         #expect(cancelSyncState?.isSyncing == false)
     }

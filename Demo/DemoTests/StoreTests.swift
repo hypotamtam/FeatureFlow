@@ -10,11 +10,12 @@ struct StoreTests {
     func scopedStoreReceivesParentUpdates() async throws {
         let rootStore = Store(initialState: AppState(), flow: rootFlow)
         let scopedStore = rootStore.scope(state: \.counter, action: { .counterAction($0) })
+        var iterator = scopedStore.stateStream.dropFirst().makeAsyncIterator()
         
         rootStore.send(.counterAction(.increment))
         
         // Wait for AsyncStream propagation
-        try await Task.sleep(nanoseconds: 50_000_000)
+        _ = await iterator.next()
         
         #expect(scopedStore.state.count == 1)
     }
@@ -23,12 +24,12 @@ struct StoreTests {
     @Test("Actions sent to a scoped store should update the state in the parent store")
     func scopedStoreSendsToParent() async throws {
         let rootStore = Store(initialState: AppState(), flow: rootFlow)
+        var iterator = rootStore.stateStream.dropFirst().makeAsyncIterator()
         let scopedStore = rootStore.scope(state: \.counter, action: { .counterAction($0) })
         
         scopedStore.send(.increment)
         
-        // Wait for AsyncStream propagation
-        try await Task.sleep(nanoseconds: 50_000_000)
+        _ = await iterator.next()
         
         #expect(rootStore.state.counter.count == 1)
     }
