@@ -43,6 +43,11 @@ public enum FlowBuilder<State: FeatureFlow.State, Action: Sendable> {
         expression
     }
 
+    /// Optimized overload for a single flow to avoid redundant wrapping and indirection.
+    public static func buildBlock(_ component: Flow<State, Action>) -> Flow<State, Action> {
+        component
+    }
+
     /// Combines multiple flows sequentially.
     public static func buildBlock(_ components: Flow<State, Action>...) -> Flow<State, Action> {
         Flow { state, action in
