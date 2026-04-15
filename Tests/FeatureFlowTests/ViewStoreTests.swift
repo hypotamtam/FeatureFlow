@@ -71,8 +71,8 @@ struct ViewStoreTests {
     }
     
     @MainActor
-    @Test("ViewStore releases scoped stores when no longer referenced")
-    func scopeIsReleased() {
+    @Test("ViewStore releases scoped stores when no longer referenced and cleans up memory")
+    func scopeIsReleased() async throws {
         let viewStore = ViewStore(initialState: TestState(), flow: baseTestFlow)
         
         weak var weakChild: ViewStore<SubState, SubAction>?
@@ -84,17 +84,18 @@ struct ViewStoreTests {
             )
             weakChild = child
             #expect(weakChild != nil)
+            #expect(viewStore._scopedStoresCount == 1)
         }
         
         // After autoreleasepool, the only reference should have been the dictionary
         // Since the dictionary holds it weakly, it should be nil
         #expect(weakChild == nil)
         
-        // Create another scope to trigger the cleanup filter
-        _ = viewStore.scope(
-            state: \.child,
-            action: { .childAction($0) }
-        )
+        // Yield to allow our O(1) async cleanup Task to execute
+        try await Task.sleep(nanoseconds: 10_000_000)
+        
+        // Assert the cleanup succeeded without needing another scope() call
+        #expect(viewStore._scopedStoresCount == 0)
     }
     
     @MainActor

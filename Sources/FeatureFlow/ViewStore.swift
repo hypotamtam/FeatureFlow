@@ -6,6 +6,12 @@ private protocol AnyWeakViewStore {
     var isAlive: Bool { get }
 }
 
+private final class DeinitObserver: Sendable {
+    private let onDeinit: @Sendable () -> Void
+    init(onDeinit: @escaping @Sendable () -> Void) { self.onDeinit = onDeinit }
+    deinit { onDeinit() }
+}
+
 /// A SwiftUI wrapper for `Store` that leverages the older `@ObservedObject` protocol.
 ///
 /// Use `ViewStore` to connect your feature's state and actions to a SwiftUI view in 
@@ -23,7 +29,17 @@ public final class ViewStore<State: FeatureFlow.State, Action: Sendable>: Observ
     private let store: Store<State, Action>
     
     private var scopedStores: [ScopeKey: AnyWeakViewStore] = [:]
+
+    private var scopeIDs: [UUID: ScopeKey] = [:]
+
+    private var deinitObserver: DeinitObserver?
     
+    #if canImport(Testing)
+    internal var _scopedStoresCount: Int {
+        scopedStores.count
+    }
+    #endif
+
     private var stateObservation: Task<Void, Never>?
     
     private struct ScopeKey: Hashable {
@@ -91,10 +107,25 @@ public final class ViewStore<State: FeatureFlow.State, Action: Sendable>: Observ
         let scopedStore = ViewStore<ChildState, ChildAction>(
             store: store.scope(state: childKeyPath, action: fromChildAction)
         )
-        scopedStores[key] = WeakStore(scopedStore)
         
-        // Cleanup dead weak references to keep the dictionary small
-        scopedStores = scopedStores.filter { $0.value.isAlive }
+        let removalID = UUID()
+        scopeIDs[removalID] = key
+        
+        // Cleanup this specific key from memory when the scoped store is deallocated.
+        // This is O(1) compared to filtering the entire dictionary.
+        scopedStore.deinitObserver = DeinitObserver { [weak self] in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                if let key = self.scopeIDs.removeValue(forKey: removalID) {
+                    // Only remove if the reference is truly dead (prevents race conditions)
+                    if self.scopedStores[key]?.isAlive == false {
+                        self.scopedStores.removeValue(forKey: key)
+                    }
+                }
+            }
+        }
+
+        scopedStores[key] = WeakStore(scopedStore)
         
         return scopedStore
     }
