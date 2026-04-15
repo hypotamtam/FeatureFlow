@@ -49,10 +49,8 @@ public final class ViewStore<State: FeatureFlow.State, Action: Sendable>: Observ
     
     private final class WeakStore<ChildState: FeatureFlow.State, ChildAction: Sendable>: AnyWeakViewStore {
         weak var store: ViewStore<ChildState, ChildAction>?
-        let removalID: UUID
-        init(_ store: ViewStore<ChildState, ChildAction>, removalID: UUID) {
+        init(_ store: ViewStore<ChildState, ChildAction>) {
             self.store = store
-            self.removalID = removalID
         }
         var isAlive: Bool { store != nil }
     }
@@ -127,7 +125,7 @@ public final class ViewStore<State: FeatureFlow.State, Action: Sendable>: Observ
             }
         }
 
-        scopedStores[key] = WeakStore(scopedStore, removalID: removalID)
+        scopedStores[key] = WeakStore(scopedStore)
         
         return scopedStore
     }
