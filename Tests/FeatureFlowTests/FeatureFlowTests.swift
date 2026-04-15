@@ -1,5 +1,3 @@
-// Tests/FeatureFlowTests/FeatureFlowTests.swift
-
 import Testing
 import Foundation
 import Combine
@@ -61,15 +59,15 @@ let baseTestFlow = Flow<TestState, TestAction> { state, action in
     }
 }
 
-let combinedTestFlow = Flow<TestState, TestAction>.combine(
-    baseTestFlow,
+let combinedTestFlow = Flow<TestState, TestAction> {
+    baseTestFlow
     subFlow.pullback(
         childPath: \.child,
-        toChildAction: { 
+        toChildAction: {
             guard case let .childAction(action) = $0 else { return nil }
             return action
         },
         toParentAction: { .childAction($0) }
     )
-)
+}
 

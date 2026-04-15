@@ -1,6 +1,6 @@
 # Composition in FeatureFlow
 
-A major benefit of unidirectional data flow is that entire applications can be built out of small, isolated, and highly testable modules. FeatureFlow provides robust tools (`pullback` and `combine`) to merge smaller `Flow`s into larger ones.
+A major benefit of unidirectional data flow is that entire applications can be built out of small, isolated, and highly testable modules. FeatureFlow provides robust tools (`pullback` and a declarative `Flow` builder) to merge smaller `Flow`s into larger ones.
 
 ## Why Compose?
 
@@ -67,14 +67,14 @@ let pulledSettingsFlow = settingsFlow.pullback(
 
 ---
 
-## 3. Using `combine`
+## 3. Composing with `Flow` initializers
 
 Now that your child flows are "pulled back" to operate on the `App` domain, you need to execute them alongside your parent logic.
 
-The `Flow.combine` method takes multiple flows and runs them sequentially. When an `AppAction` is dispatched, it runs through the first flow, mutates the state, passes the *new* state to the second flow, and merges any returned effects.
+FeatureFlow provides a declarative way to combine multiple flows using a result builder. When an `AppAction` is dispatched, it runs through the flows in the order they are listed. Each flow receives the state mutated by the previous one, and all effects are merged automatically.
 
 ```swift
-let appFlow = Flow<AppAction>.combine(
+let appFlow = Flow<AppState, AppAction> {
     // 1. The Parent's own logic
     Flow { state, action in
         switch action {
@@ -82,16 +82,16 @@ let appFlow = Flow<AppAction>.combine(
             print("App Launched")
             return .result(state)
         default:
-            return .result(state) // Pass through unhandled actions
+            return .result(state)
         }
-    },
+    }
     
     // 2. The pulled-back Settings logic
     settingsFlow.pullback(
         childPath: \.settings,
         toChildAction: { if case let .settingsAction(a) = $0 { return a } else { return nil } },
         toParentAction: { .settingsAction($0) }
-    ),
+    )
     
     // 3. The pulled-back User logic
     userFlow.pullback(
@@ -99,7 +99,12 @@ let appFlow = Flow<AppAction>.combine(
         toChildAction: { if case let .userAction(a) = $0 { return a } else { return nil } },
         toParentAction: { .userAction($0) }
     )
-)
+    
+    // 4. You can even use conditional logic!
+    if isDebugMode {
+        createLogFlow()
+    }
+}
 ```
 
 ---

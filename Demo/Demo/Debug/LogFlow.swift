@@ -1,10 +1,3 @@
-//
-//  LogReducer.swift
-//  UDF-Example
-//
-//  Created by Thomas Cassany on 12/03/2026.
-//
-
 import FeatureFlow
 
 func createLogFlow<State: FeatureFlow.State, Action: Sendable>() -> Flow<State, Action> {

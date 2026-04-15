@@ -1,10 +1,3 @@
-//
-//  DemoApp.swift
-//  Demo
-//
-//  Created by Thomas Cassany on 12/03/2026.
-//
-
 import SwiftUI
 
 @main

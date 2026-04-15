@@ -81,11 +81,7 @@ func createAppFlow(clock: any Clock<Duration>) -> Flow<AppState, AppAction> {
 
 @available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)
 func createRootFlow(clock: any Clock<Duration> = ContinuousClock()) -> Flow<AppState, AppAction> {
-    // EDUCATIONAL: .combine merges multiple smaller flows into one large flow.
-    // Actions will be passed through them sequentially.
-    Flow<AppState, AppAction>.combine(
-        // EDUCATIONAL: .pullback transforms a child flow (UserFlow) so it can 
-        // operate inside the parent domain (AppDomain).
+    Flow<AppState, AppAction> {
         userFlow.pullback(
             childPath: \.user,
             toChildAction: { 
@@ -93,7 +89,7 @@ func createRootFlow(clock: any Clock<Duration> = ContinuousClock()) -> Flow<AppS
                 return nil 
             },
             toParentAction: { .userAction($0) }
-        ),
+        )
         
         createCounterFlow(clock: clock).pullback(
             childPath: \.counter,
@@ -102,7 +98,7 @@ func createRootFlow(clock: any Clock<Duration> = ContinuousClock()) -> Flow<AppS
                 return nil
             },
             toParentAction: { .counterAction($0) }
-        ),
+        )
         
         settingsFlow.pullback(
             childPath: \.settings,
@@ -111,12 +107,12 @@ func createRootFlow(clock: any Clock<Duration> = ContinuousClock()) -> Flow<AppS
                 return nil
             },
             toParentAction: { .settingsAction($0) }
-        ),
+        )
         
-        createAppFlow(clock: clock),
+        createAppFlow(clock: clock)
         
         createLogFlow()
-    )
+    }
 }
 
 func createAppFlowLegacy() -> Flow<AppState, AppAction> {
@@ -165,7 +161,7 @@ func createAppFlowLegacy() -> Flow<AppState, AppAction> {
 }
 
 func createRootFlowLegacy() -> Flow<AppState, AppAction> {
-    Flow<AppState, AppAction>.combine(
+    Flow<AppState, AppAction> {
         userFlow.pullback(
             childPath: \.user,
             toChildAction: { 
@@ -173,7 +169,7 @@ func createRootFlowLegacy() -> Flow<AppState, AppAction> {
                 return nil 
             },
             toParentAction: { .userAction($0) }
-        ),
+        )
         
         counterFlowLegacy.pullback(
             childPath: \.counter,
@@ -182,7 +178,7 @@ func createRootFlowLegacy() -> Flow<AppState, AppAction> {
                 return nil
             },
             toParentAction: { .counterAction($0) }
-        ),
+        )
         
         settingsFlow.pullback(
             childPath: \.settings,
@@ -191,12 +187,12 @@ func createRootFlowLegacy() -> Flow<AppState, AppAction> {
                 return nil
             },
             toParentAction: { .settingsAction($0) }
-        ),
+        )
         
-        createAppFlowLegacy(),
+        createAppFlowLegacy()
         
         createLogFlow()
-    )
+    }
 }
 
 let rootFlowLegacy = createRootFlowLegacy()

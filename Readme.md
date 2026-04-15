@@ -16,7 +16,7 @@ The goal of FeatureFlow is to provide a predictable state management system simi
 - **Unidirectional Data Flow**: State is read-only and can only be modified by sending actions through a "Flow".
 - **Pure Logic**: `Flow` logic is isolated and predictable, making it easy to unit test.
 - **Modern Effects**: Built-in support for asynchronous side effects using `async/await`.
-- **Composition**: Use `pullback` and `combine` to build complex features out of smaller, independent modules.
+- **Composition**: Use `pullback` and a declarative `Flow` builder to build complex features out of smaller, independent modules.
 - **Effect Management**: Native support for **Debounce**, **Throttle**, and **Cancellation** via `EffectPolicy`.
 - **Type Safety** : Leverages Swift's type system to ensure actions and states are always compatible.
 
@@ -91,17 +91,18 @@ case .updateSearch(let query):
 
 ### 4. Composition (Modularization)
 
-You can scale your app by nesting child features into a parent "Root" flow using pullback and combine.
+You can scale your app by nesting child features into a parent "Root" flow using pullback and a declarative builder.
 
 ```swift
-let rootFlow = Flow<AppAction>.combine(
+let rootFlow = Flow<AppState, AppAction> {
     counterFlow.pullback(
         childPath: \.counter,
         toChildAction: { if case .counterAction(let a) = $0 { return a }; return nil },
         toParentAction: { .counterAction($0) }
-    ),
+    )
+
     appFlow
-)
+}
 ```
 
 ### 5. SwiftUI Integration
