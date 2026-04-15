@@ -1,5 +1,3 @@
-// Tests/FeatureFlowTests/EffectTests.swift
-
 import Testing
 import Foundation
 @testable import FeatureFlow

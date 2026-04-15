@@ -1,5 +1,3 @@
-// Tests/FeatureFlowTests/ObservableViewStoreTests.swift
-
 import Testing
 import Foundation
 import Observation

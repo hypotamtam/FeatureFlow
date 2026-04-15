@@ -1,5 +1,3 @@
-// Tests/FeatureFlowTests/ViewStoreTests.swift
-
 import Testing
 import Combine
 import Foundation
