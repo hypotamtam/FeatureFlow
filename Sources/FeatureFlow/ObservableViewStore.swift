@@ -13,6 +13,12 @@ private protocol AnyWeakObservableViewStore {
     var isAlive: Bool { get }
 }
 
+private final class DeinitObserver: Sendable {
+    private let onDeinit: @Sendable () -> Void
+    init(onDeinit: @escaping @Sendable () -> Void) { self.onDeinit = onDeinit }
+    deinit { onDeinit() }
+}
+
 /// A SwiftUI wrapper for `Store` that leverages the modern `@Observable` macro.
 ///
 /// Use `ObservableViewStore` to connect your feature's state and actions to a SwiftUI view 
@@ -32,9 +38,21 @@ public final class ObservableViewStore<State: FeatureFlow.State, Action: Sendabl
     
     @ObservationIgnored
     private var stateObservation: TaskCancellable?
+
+    @ObservationIgnored
+    private var deinitObserver: DeinitObserver?
     
     @ObservationIgnored
     private var scopedStores: [ScopeKey: AnyWeakObservableViewStore] = [:]
+
+    @ObservationIgnored
+    private var scopeIDs: [UUID: ScopeKey] = [:]
+
+    #if canImport(Testing)
+    internal var _scopedStoresCount: Int {
+        scopedStores.count
+    }
+    #endif
     
     private struct ScopeKey: Hashable {
         let stateKeyPath: AnyHashable
@@ -43,9 +61,13 @@ public final class ObservableViewStore<State: FeatureFlow.State, Action: Sendabl
     
     private final class WeakStore<ChildState: FeatureFlow.State, ChildAction: Sendable>: AnyWeakObservableViewStore {
         weak var store: ObservableViewStore<ChildState, ChildAction>?
-        init(_ store: ObservableViewStore<ChildState, ChildAction>) {
+        let removalID: UUID
+        
+        init(_ store: ObservableViewStore<ChildState, ChildAction>, removalID: UUID) {
             self.store = store
+            self.removalID = removalID
         }
+
         var isAlive: Bool { store != nil }
     }
     
@@ -98,10 +120,25 @@ public final class ObservableViewStore<State: FeatureFlow.State, Action: Sendabl
         let scopedStore = ObservableViewStore<ChildState, ChildAction>(
             store: store.scope(state: childKeyPath, action: fromChildAction)
         )
-        scopedStores[key] = WeakStore(scopedStore)
         
-        // Cleanup dead weak references to keep the dictionary small
-        scopedStores = scopedStores.filter { $0.value.isAlive }
+        let removalID = UUID()
+        scopeIDs[removalID] = key
+        
+        // Cleanup this specific key from memory when the scoped store is deallocated.
+        // This is O(1) compared to filtering the entire dictionary.
+        scopedStore.deinitObserver = DeinitObserver { [weak self] in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                if let key = self.scopeIDs.removeValue(forKey: removalID) {
+                    // Only remove if the reference is truly dead (prevents race conditions)
+                    if self.scopedStores[key]?.isAlive == false {
+                        self.scopedStores.removeValue(forKey: key)
+                    }
+                }
+            }
+        }
+
+        scopedStores[key] = WeakStore(scopedStore, removalID: removalID)
         
         return scopedStore
     }
