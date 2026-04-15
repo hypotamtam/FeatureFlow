@@ -1,3 +1,4 @@
+#if canImport(SwiftCompilerPlugin)
 import SwiftCompilerPlugin
 import SwiftSyntax
 import SwiftSyntaxBuilder
@@ -15,11 +16,14 @@ public struct CasePathableMacro: ExtensionMacro {
             throw MacroError.onlyApplicableToEnums
         }
 
-        let access = enumDecl.modifiers.first { modifier in
-            modifier.name.tokenKind == .keyword(.public) || 
-            modifier.name.tokenKind == .keyword(.package) ||
-            modifier.name.tokenKind == .keyword(.internal)
-        }?.name.text ?? "internal"
+        let access = enumDecl.modifiers.lazy.compactMap { modifier in
+            switch modifier.name.tokenKind {
+            case .keyword(.public), .keyword(.package), .keyword(.internal), .keyword(.private), .keyword(.fileprivate):
+                return modifier.name.text
+            default:
+                return nil
+            }
+        }.first ?? "internal"
 
         let cases = enumDecl.memberBlock.members
             .compactMap { $0.decl.as(EnumCaseDeclSyntax.self) }
@@ -41,7 +45,7 @@ public struct CasePathableMacro: ExtensionMacro {
             let associatedType = firstParam.type.description.trimmingCharacters(in: .whitespaces)
             
             let decl = """
-                public static let \(caseName) = CasePath<\(type), \(associatedType)>(
+                \(access) static let \(caseName) = CasePath<\(type), \(associatedType)>(
                     embed: \(type).\(caseName),
                     extract: { root in
                         guard case let .\(caseName)(value) = root else { return nil }
@@ -78,3 +82,4 @@ enum MacroError: Error, CustomStringConvertible {
         }
     }
 }
+#endif

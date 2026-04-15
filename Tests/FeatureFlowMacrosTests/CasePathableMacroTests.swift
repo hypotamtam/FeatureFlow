@@ -1,3 +1,4 @@
+#if os(macOS)
 import SwiftSyntaxMacros
 import SwiftSyntaxMacrosTestSupport
 import XCTest
@@ -26,7 +27,7 @@ final class CasePathableMacroTests: XCTestCase {
 
             extension AppAction {
                 internal enum Cases {
-                    public static let counter = CasePath<AppAction, CounterAction>(
+                    internal static let counter = CasePath<AppAction, CounterAction>(
                         embed: AppAction.counter,
                         extract: { root in
                             guard case let .counter(value) = root else {
@@ -35,7 +36,7 @@ final class CasePathableMacroTests: XCTestCase {
                             return value
                         }
                     )
-                    public static let user = CasePath<AppAction, UserAction>(
+                    internal static let user = CasePath<AppAction, UserAction>(
                         embed: AppAction.user,
                         extract: { root in
                             guard case let .user(value) = root else {
@@ -81,6 +82,37 @@ final class CasePathableMacroTests: XCTestCase {
             macros: testMacros
         )
     }
+    
+    func testInternalEnum() {
+        assertMacroExpansion(
+            """
+            @CasePathable
+            internal enum AppAction {
+                case counter(CounterAction)
+            }
+            """,
+            expandedSource: """
+            internal enum AppAction {
+                case counter(CounterAction)
+            }
+
+            extension AppAction {
+                internal enum Cases {
+                    internal static let counter = CasePath<AppAction, CounterAction>(
+                        embed: AppAction.counter,
+                        extract: { root in
+                            guard case let .counter(value) = root else {
+                                    return nil
+                                }
+                            return value
+                        }
+                    )
+                }
+            }
+            """,
+            macros: testMacros
+        )
+    }
 
     func testNoAssociatedValue() {
         assertMacroExpansion(
@@ -99,7 +131,7 @@ final class CasePathableMacroTests: XCTestCase {
 
             extension AppAction {
                 internal enum Cases {
-                    public static let child = CasePath<AppAction, ChildAction>(
+                    internal static let child = CasePath<AppAction, ChildAction>(
                         embed: AppAction.child,
                         extract: { root in
                             guard case let .child(value) = root else {
@@ -115,7 +147,7 @@ final class CasePathableMacroTests: XCTestCase {
         )
     }
 
-    func testOnlyApplicableToEnums() {
+    func testNotApplicableToStruct() {
         assertMacroExpansion(
             """
             @CasePathable
@@ -134,4 +166,45 @@ final class CasePathableMacroTests: XCTestCase {
             macros: testMacros
         )
     }
+    
+    func testNotApplicableToClass() {
+        assertMacroExpansion(
+            """
+            @CasePathable
+            class NotAnEnum {
+                var value: Int
+            }
+            """,
+            expandedSource: """
+            class NotAnEnum {
+                var value: Int
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(message: "@CasePathable can only be applied to enums.", line: 1, column: 1)
+            ],
+            macros: testMacros
+        )
+    }
+    
+    func testNotApplicableToActor() {
+        assertMacroExpansion(
+            """
+            @CasePathable
+            actor NotAnEnum {
+                var value: Int
+            }
+            """,
+            expandedSource: """
+            actor NotAnEnum {
+                var value: Int
+            }
+            """,
+            diagnostics: [
+                DiagnosticSpec(message: "@CasePathable can only be applied to enums.", line: 1, column: 1)
+            ],
+            macros: testMacros
+        )
+    }
 }
+#endif

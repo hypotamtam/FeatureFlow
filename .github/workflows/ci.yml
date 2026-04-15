@@ -30,6 +30,25 @@ jobs:
             -destination "platform=iOS Simulator,name=iPhone 17,OS=26.2" \
             OTHER_SWIFT_FLAGS="-strict-concurrency=complete"
 
+  test-package-macos:
+    name: Test Swift Package (macOS)
+    runs-on: macos-26
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '26.3'
+
+      - name: Run Package Tests (macOS)
+        run: |
+          xcodebuild test \
+            -scheme FeatureFlow \
+            -destination "platform=macOS" \
+            OTHER_SWIFT_FLAGS="-strict-concurrency=complete"
+
   build-demo-ios:
     name: Build Demo (iOS)
     runs-on: macos-26

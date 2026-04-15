@@ -1,3 +1,4 @@
+#if canImport(SwiftCompilerPlugin)
 import SwiftCompilerPlugin
 import SwiftSyntaxMacros
 
@@ -7,3 +8,4 @@ struct FeatureFlowPlugin: CompilerPlugin {
         CasePathableMacro.self,
     ]
 }
+#endif
