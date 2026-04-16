@@ -68,21 +68,23 @@ struct CasePathTests {
             }
         }
         
-        let rootFlow: Flow<RootState, RootAction> = childFlow.pullback(
-            state: \RootState.child,
-            action: RootAction.Cases.child
-        )
+        let rootFlow = Flow<RootState, RootAction> {
+            childFlow.pullback(
+                state: \RootState.child,
+                action: RootAction.Cases.child
+            )
+        }
         
         let store = Store(initialState: RootState(), flow: rootFlow)
         let childStore: Store<ChildState, ChildAction> = store.scope(
             state: \RootState.child,
             action: RootAction.Cases.child
         )
+        var iterator = childStore.stateStream.dropFirst().makeAsyncIterator()
         
         childStore.send(.increment)
         
         // Wait for state propagation
-        var iterator = store.stateStream.dropFirst().makeAsyncIterator()
         _ = await iterator.next()
         
         #expect(store.state.child.count == 1)

@@ -34,7 +34,8 @@ let package = Package(
                 .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
                 .product(name: "SwiftCompilerPlugin", package: "swift-syntax"),
                 .product(name: "SwiftSyntaxBuilder", package: "swift-syntax"),
-            ]
+            ],
+            path: "Sources/FeatureFlowMacros"
         ),
         .target(
             name: "FeatureFlow",
