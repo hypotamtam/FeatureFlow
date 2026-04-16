@@ -128,6 +128,30 @@ struct ObservableViewStoreTests {
     }
 
     @MainActor
+    @Test("ObservableViewStore.binding(to: CasePath) creates a working binding")
+    func casePathBinding() async throws {
+        guard #available(iOS 17.0, macOS 14.0, tvOS 17.0, watchOS 10.0, *) else { return }
+
+        let viewStore = ObservableViewStore(initialState: TestState(), flow: baseTestFlow)
+        
+        let setTextCasePath = CasePath<TestAction, String>(
+            embed: { .setText($0) },
+            extract: { 
+                guard case let .setText(text) = $0 else { return nil }
+                return text
+            }
+        )
+        
+        let binding = viewStore.binding(\.text, to: setTextCasePath)
+        
+        await viewStore.waitForNextStateUpdate {
+            binding.wrappedValue = "CasePath value"
+        }
+        
+        #expect(viewStore.state.text == "CasePath value")
+    }
+
+    @MainActor
     @Test("ObservableViewStore removes duplicate state updates to prevent unnecessary rendering")
     func viewStoreRemovesDuplicates() async throws {
         guard #available(iOS 17.0, macOS 14.0, tvOS 17.0, watchOS 10.0, *) else { return }

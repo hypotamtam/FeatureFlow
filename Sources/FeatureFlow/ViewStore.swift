@@ -168,6 +168,25 @@ public final class ViewStore<State: FeatureFlow.State, Action: Sendable>: Observ
         )
     }
 
+    /// Creates a standard SwiftUI `Binding` for a property in the state, using a `CasePath` to embed the value into an action.
+    ///
+    /// The setter of this binding dispatches the action with the new value back to the store using the `CasePath`'s embed function.
+    ///
+    /// ```swift
+    /// Toggle("Enabled", isOn: viewStore.binding(\.isEnabled, to: .isEnabledChanged))
+    /// ```
+    ///
+    /// - Parameters:
+    ///   - keyPath: A key path to a value inside the state.
+    ///   - casePath: A case path for embedding the updated value into the feature's action.
+    /// - Returns: A SwiftUI binding.
+    public func binding<Value>(
+        _ keyPath: KeyPath<State, Value>,
+        to casePath: CasePath<Action, Value>
+    ) -> Binding<Value> {
+        self.binding(keyPath, to: casePath.embed)
+    }
+
     /// Creates a standard SwiftUI `Binding` for a property in the state, dispatching a constant action on change.
     ///
     /// - Parameters:

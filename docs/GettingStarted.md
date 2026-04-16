@@ -8,7 +8,6 @@ Every feature starts with two types:
 
 *   **State:** A struct holding the data required to render the feature. It must conform to `FeatureFlow.State`.
 *   **Action:** An enum defining all the events that can happen in the feature (user interactions, network responses, etc.). It must conform to `FeatureFlow.Action`.
-
 Let's create a `CounterState` and a `CounterAction`:
 
 ```swift
@@ -17,13 +16,14 @@ import FeatureFlow
 struct CounterState: State {
     var count = 0
     var isLoading = false
+    var name = ""
 }
 
+@CasePathable
 enum CounterAction: Action {
-    typealias State = CounterState
-    
     case increment
     case decrement
+    case nameChanged(String)
     case fetchRandomFact
     case randomFactResponse(String)
 }
@@ -41,21 +41,17 @@ let counterFlow = Flow<CounterAction> { state, action in
     switch action {
     case . increment:
         return .result(state.with { $0.count += 1 })
-        
+
     case . decrement:
         return .result(state.with { $0.count -= 1 })
-        
+
+    case .nameChanged(let name):
+        return .result(state.with { $0.name = name })
+
     case .fetchRandomFact:
-        // Set loading state and trigger a side effect
-        return .result(
-            state.with { $0.isLoading = true },
-            effect: Effect {
-                // Simulate an API call
-                try? await Task.sleep(nanoseconds: 1_000_000_000)
-                let mockFact = "The number \(state.count) is awesome!"
-                return .randomFactResponse(mockFact)
-            }
-        )
+            try? await Task.sleep(nanoseconds: 1_000_000_000)
+            let mockFact = "The number \(state.count) is awesome!"
+            return .randomFactResponse(mockFact)
         
     case .randomFactResponse(let fact):
         // Handle the effect's result
@@ -81,9 +77,14 @@ struct CounterView: View {
     
     var body: some View {
         VStack(spacing: 20) {
+            TextField(
+                "Counter Name",
+                text: viewStore.binding(\.name, to: CounterAction.Cases.nameChanged)
+            )
+            .textFieldStyle(.roundedBorder)
+
             // 2. Read state directly
-            Text("Count: \(viewStore.state.count)")
-                .font(.largeTitle)
+            Text("\(viewStore.state.name) Count: \(viewStore.state.count)")
             
             HStack {
                 // 3. Send actions

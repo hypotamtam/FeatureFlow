@@ -8,6 +8,7 @@ struct SearchState: State {
     var isSearching = false
 }
 
+@CasePathable
 enum SearchAction: Action {
     typealias State = SearchState
     
@@ -54,7 +55,7 @@ struct SearchView: View {
         VStack {
             TextField(
                 "Search...",
-                text: viewStore.binding(\.query, to: { .queryChanged($0) })
+                text: viewStore.binding(\.query, to: SearchAction.Cases.queryChanged)
             )
             .textFieldStyle(.roundedBorder)
             .padding()
