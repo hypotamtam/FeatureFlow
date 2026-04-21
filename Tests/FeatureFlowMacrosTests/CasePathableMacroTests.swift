@@ -29,7 +29,7 @@ final class CasePathableMacroTests: XCTestCase {
                 internal enum Cases {
                     internal static let counter = CasePath<AppAction, CounterAction>(
                         embed: AppAction.counter,
-                        extract: { root in
+                        extract: { @Sendable root in
                             guard case let .counter(value) = root else {
                                     return nil
                                 }
@@ -38,7 +38,7 @@ final class CasePathableMacroTests: XCTestCase {
                     )
                     internal static let user = CasePath<AppAction, UserAction>(
                         embed: AppAction.user,
-                        extract: { root in
+                        extract: { @Sendable root in
                             guard case let .user(value) = root else {
                                     return nil
                                 }
@@ -69,7 +69,7 @@ final class CasePathableMacroTests: XCTestCase {
                 public enum Cases {
                     public static let counter = CasePath<AppAction, CounterAction>(
                         embed: AppAction.counter,
-                        extract: { root in
+                        extract: { @Sendable root in
                             guard case let .counter(value) = root else {
                                     return nil
                                 }
@@ -100,7 +100,7 @@ final class CasePathableMacroTests: XCTestCase {
                 internal enum Cases {
                     internal static let counter = CasePath<AppAction, CounterAction>(
                         embed: AppAction.counter,
-                        extract: { root in
+                        extract: { @Sendable root in
                             guard case let .counter(value) = root else {
                                     return nil
                                 }
@@ -133,7 +133,7 @@ final class CasePathableMacroTests: XCTestCase {
                 internal enum Cases {
                     internal static let child = CasePath<AppAction, ChildAction>(
                         embed: AppAction.child,
-                        extract: { root in
+                        extract: { @Sendable root in
                             guard case let .child(value) = root else {
                                     return nil
                                 }

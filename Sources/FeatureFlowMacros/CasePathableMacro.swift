@@ -47,7 +47,7 @@ public struct CasePathableMacro: ExtensionMacro {
             let decl = """
                 \(access) static let \(caseName) = CasePath<\(type), \(associatedType)>(
                     embed: \(type).\(caseName),
-                    extract: { root in
+                    extract: { @Sendable root in
                         guard case let .\(caseName)(value) = root else { return nil }
                         return value
                     }
