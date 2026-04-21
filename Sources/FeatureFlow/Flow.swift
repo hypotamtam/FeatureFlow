@@ -98,6 +98,23 @@ extension Flow.Result {
 }
 
 public extension Flow {
+    /// Transforms a child `Flow` into a parent `Flow` domain using a `CasePath`.
+    ///
+    /// - Parameters:
+    ///   - childPath: A writable key path from the parent state to the child state.
+    ///   - action: A case path for extracting and embedding the child action.
+    /// - Returns: A new `Flow` operating on the parent domain.
+    func pullback<ParentState: FeatureFlow.State, ParentAction: Sendable>(
+        state childPath: WritableKeyPath<ParentState, State> & Sendable,
+        action casePath: CasePath<ParentAction, Action>
+    ) -> Flow<ParentState, ParentAction> {
+        self.pullback(
+            childPath: childPath,
+            toChildAction: casePath.extract,
+            toParentAction: casePath.embed
+        )
+    }
+
     /// Transforms a child `Flow` into a parent `Flow` domain.
     ///
     /// This allows you to compose smaller, isolated features into a larger, complex application.

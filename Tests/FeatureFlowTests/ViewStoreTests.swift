@@ -49,6 +49,28 @@ struct ViewStoreTests {
     }
 
     @MainActor
+    @Test("ViewStore.binding(to: CasePath) creates a working binding")
+    func casePathBinding() async throws {
+        let viewStore = ViewStore(initialState: TestState(), flow: baseTestFlow)
+        
+        let setTextCasePath = CasePath<TestAction, String>(
+            embed: { .setText($0) },
+            extract: { 
+                guard case let .setText(text) = $0 else { return nil }
+                return text
+            }
+        )
+        
+        let binding = viewStore.binding(\.text, to: setTextCasePath)
+        
+        await viewStore.waitForNextStateUpdate {
+            binding.wrappedValue = "CasePath value"
+        }
+        
+        #expect(viewStore.state.text == "CasePath value")
+    }
+
+    @MainActor
     @Test("ViewStore.scope returns the same instance for identical scopes")
     func viewStoreScopeIsMemoized() {
         let viewStore = ViewStore(initialState: TestState(), flow: baseTestFlow)

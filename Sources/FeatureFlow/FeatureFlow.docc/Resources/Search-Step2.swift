@@ -7,6 +7,7 @@ struct SearchState: State {
     var isSearching = false
 }
 
+@CasePathable
 enum SearchAction: Action {
     case queryChanged(String)
     case searchResponse([String])

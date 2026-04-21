@@ -13,6 +13,7 @@ struct AppState: State {
     }
 }
 
+@CasePathable
 enum AppAction: Action, Equatable {
     case userAction(UserAction)
     case counterAction(CounterAction)
@@ -81,37 +82,32 @@ func createAppFlow(clock: any Clock<Duration>) -> Flow<AppState, AppAction> {
 
 @available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)
 func createRootFlow(clock: any Clock<Duration> = ContinuousClock()) -> Flow<AppState, AppAction> {
+    // EDUCATIONAL: .combine merges multiple smaller flows into one large flow.
+    // Actions will be passed through them sequentially.
     Flow<AppState, AppAction> {
+        // EDUCATIONAL: .pullback transforms a child flow (UserFlow) so it can 
+        // operate inside the parent domain (AppDomain).
+        // By using @CasePathable on AppAction, we can use AppAction.Cases.userAction
+        // instead of manual extraction/embedding closures.
         userFlow.pullback(
-            childPath: \.user,
-            toChildAction: { 
-                if case .userAction(let action) = $0 { return action }
-                return nil 
-            },
-            toParentAction: { .userAction($0) }
+            state: \.user,
+            action: AppAction.Cases.userAction
         )
         
         createCounterFlow(clock: clock).pullback(
-            childPath: \.counter,
-            toChildAction: {
-                if case .counterAction(let action) = $0 { return action }
-                return nil
-            },
-            toParentAction: { .counterAction($0) }
+            state: \.counter,
+            action: AppAction.Cases.counterAction
         )
         
         settingsFlow.pullback(
-            childPath: \.settings,
-            toChildAction: {
-                if case .settingsAction(let action) = $0 { return action }
-                return nil
-            },
-            toParentAction: { .settingsAction($0) }
+            state: \.settings,
+            action: AppAction.Cases.settingsAction
         )
         
         createAppFlow(clock: clock)
         
         createLogFlow()
+        
     }
 }
 
@@ -163,30 +159,18 @@ func createAppFlowLegacy() -> Flow<AppState, AppAction> {
 func createRootFlowLegacy() -> Flow<AppState, AppAction> {
     Flow<AppState, AppAction> {
         userFlow.pullback(
-            childPath: \.user,
-            toChildAction: { 
-                if case .userAction(let action) = $0 { return action }
-                return nil 
-            },
-            toParentAction: { .userAction($0) }
+            state: \.user,
+            action: AppAction.Cases.userAction
         )
         
         counterFlowLegacy.pullback(
-            childPath: \.counter,
-            toChildAction: {
-                if case .counterAction(let action) = $0 { return action }
-                return nil
-            },
-            toParentAction: { .counterAction($0) }
+            state: \.counter,
+            action: AppAction.Cases.counterAction
         )
         
         settingsFlow.pullback(
-            childPath: \.settings,
-            toChildAction: {
-                if case .settingsAction(let action) = $0 { return action }
-                return nil
-            },
-            toParentAction: { .settingsAction($0) }
+            state: \.settings,
+            action: AppAction.Cases.settingsAction
         )
         
         createAppFlowLegacy()

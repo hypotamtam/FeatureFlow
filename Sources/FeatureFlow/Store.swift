@@ -167,6 +167,22 @@ public final class Store<State: FeatureFlow.State, Action: Sendable>: @unchecked
         lock.unlock()
     }
     
+    /// Creates a child store scoped to a specific domain using a `CasePath`.
+    ///
+    /// - Parameters:
+    ///   - childKeyPath: A key path extracting the child state from the parent state.
+    ///   - casePath: A case path for embedding the child action into the parent action.
+    /// - Returns: A new `Store` operating on the child domain.
+    public func scope<ChildState: FeatureFlow.State, ChildAction: Sendable>(
+        state childKeyPath: KeyPath<State, ChildState> & Sendable,
+        action casePath: CasePath<Action, ChildAction>
+    ) -> Store<ChildState, ChildAction> {
+        self.scope(
+            state: childKeyPath,
+            action: casePath.embed
+        )
+    }
+
     /// Creates a child store scoped to a specific domain.
     ///
     /// The child store synchronizes its state with the parent store. Actions sent to the child store 

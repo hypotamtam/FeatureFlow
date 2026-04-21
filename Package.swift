@@ -2,6 +2,7 @@
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
+import CompilerPluginSupport
 
 let package = Package(
     name: "FeatureFlow",
@@ -23,10 +24,22 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-docc-plugin", from: "1.3.0"),
+        .package(url: "https://github.com/apple/swift-syntax.git", from: "600.0.0"),
     ],
     targets: [
+        .macro(
+            name: "FeatureFlowMacros",
+            dependencies: [
+                .product(name: "SwiftSyntax", package: "swift-syntax"),
+                .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
+                .product(name: "SwiftCompilerPlugin", package: "swift-syntax"),
+                .product(name: "SwiftSyntaxBuilder", package: "swift-syntax"),
+            ],
+            path: "Sources/FeatureFlowMacros"
+        ),
         .target(
-            name: "FeatureFlow"
+            name: "FeatureFlow",
+            dependencies: ["FeatureFlowMacros"]
         ),
         .target(
             name: "FeatureFlowTesting",
@@ -35,6 +48,13 @@ let package = Package(
         .testTarget(
             name: "FeatureFlowTests",
             dependencies: ["FeatureFlow", "FeatureFlowTesting"]
+        ),
+        .testTarget(
+            name: "FeatureFlowMacrosTests",
+            dependencies: [
+                "FeatureFlowMacros",
+                .product(name: "SwiftSyntaxMacrosTestSupport", package: "swift-syntax"),
+            ]
         ),
     ]
 )

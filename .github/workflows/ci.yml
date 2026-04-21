@@ -11,7 +11,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test-package:
+  test-package-ios:
     name: Test Swift Package (iOS)
     runs-on: macos-26
     steps:
@@ -21,14 +21,39 @@ jobs:
       - name: Setup Xcode
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: '26.3'
+          xcode-version: '26.4'
 
       - name: Run Package Tests (iOS)
         run: |
           xcodebuild test \
-            -scheme FeatureFlow \
-            -destination "platform=iOS Simulator,name=iPhone 17,OS=26.2" \
-            OTHER_SWIFT_FLAGS="-strict-concurrency=complete"
+            -scheme FeatureFlow-Package \
+            -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.2' \
+            -only-testing FeatureFlowTests \
+            OTHER_SWIFT_FLAGS="-strict-concurrency=complete" \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
+
+  test-package-macos:
+    name: Test Swift Package (macOS)
+    runs-on: macos-26
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: '26.4'
+
+      - name: Run Package Tests (macOS)
+        run: |
+          xcodebuild test \
+            -scheme FeatureFlow-Package \
+            -destination "platform=macOS" \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
 
   build-demo-ios:
     name: Build Demo (iOS)
@@ -40,7 +65,7 @@ jobs:
       - name: Setup Xcode
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: '26.3'
+          xcode-version: '26.4'
 
       - name: Build iOS Demo
         run: |
@@ -62,7 +87,7 @@ jobs:
       - name: Setup Xcode
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: '26.3'
+          xcode-version: '26.4'
 
       - name: Build macOS Demo
         run: |
@@ -84,7 +109,7 @@ jobs:
       - name: Setup Xcode
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: '26.3'
+          xcode-version: '26.4'
 
       - name: Run Demo Tests
         run: |
