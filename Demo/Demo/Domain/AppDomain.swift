@@ -25,6 +25,11 @@ enum AppAction: Action, Equatable {
     case saveSettings
 }
 
+enum AppFlowEffectIdentifier {
+    case syncTitle
+    case saveSettings
+}
+
 @available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)
 func createAppFlow(clock: any Clock<Duration>) -> Flow<AppState, AppAction> {
     Flow<AppState, AppAction> { state, action in
@@ -38,7 +43,7 @@ func createAppFlow(clock: any Clock<Duration>) -> Flow<AppState, AppAction> {
                 state.with { $0.appTitle = newTitle },
                 // EDUCATIONAL: .debounce ensures we wait 1 second after the user stops typing
                 // before firing the .syncTitle action. If they type again, the timer resets.
-                effect: .debounce(id: "sync-title", for: .seconds(1), clock: clock) {
+                effect: .debounce(id: AppFlowEffectIdentifier.syncTitle, for: .seconds(1), clock: clock) {
                     return .syncTitle
                 }
             )
@@ -48,7 +53,7 @@ func createAppFlow(clock: any Clock<Duration>) -> Flow<AppState, AppAction> {
                 state.with { $0.isSyncing = true },
                 // EDUCATIONAL: An effect with the same ID ("sync-title") automatically cancels 
                 // any previously running effect with that ID, ensuring only the latest sync runs.
-                effect: Effect(id: "sync-title") {
+                effect: Effect(id: AppFlowEffectIdentifier.syncTitle) {
                     try? await clock.sleep(for: .seconds(4))
                     return .cancelSync
                 }
@@ -58,7 +63,7 @@ func createAppFlow(clock: any Clock<Duration>) -> Flow<AppState, AppAction> {
             return .result(
                 state.with { $0.isSyncing = false },
                 // EDUCATIONAL: .cancel immediately halts any executing Task with the given ID.
-                effect: .cancel(id: "sync-title")
+                effect: .cancel(id: AppFlowEffectIdentifier.syncTitle)
             )
             
         case .saveSettings:
@@ -66,7 +71,7 @@ func createAppFlow(clock: any Clock<Duration>) -> Flow<AppState, AppAction> {
                 state,
                 // EDUCATIONAL: .throttle ignores any new requests with this ID while the
                 // current one is still running. Perfect for preventing double-taps.
-                effect: .throttle(id: "save-settings") {
+                effect: .throttle(id: AppFlowEffectIdentifier.saveSettings) {
                     print("Saving settings to disk...")
                     try? await clock.sleep(for: .seconds(3))
                     print("Settings saved!")
@@ -121,7 +126,7 @@ func createAppFlowLegacy() -> Flow<AppState, AppAction> {
             }
             return .result(
                 state.with { $0.appTitle = newTitle },
-                effect: .debounce(id: "sync-title", for: 1.0) {
+                effect: .debounce(id: AppFlowEffectIdentifier.syncTitle, for: 1.0) {
                     return .syncTitle
                 }
             )
@@ -129,7 +134,7 @@ func createAppFlowLegacy() -> Flow<AppState, AppAction> {
         case .syncTitle:
             return .result(
                 state.with { $0.isSyncing = true },
-                effect: Effect(id: "sync-title") {
+                effect: Effect(id: AppFlowEffectIdentifier.syncTitle) {
                     try? await Task.sleep(nanoseconds: 4_000_000_000)
                     return .cancelSync
                 }
@@ -138,13 +143,13 @@ func createAppFlowLegacy() -> Flow<AppState, AppAction> {
         case .cancelSync:
             return .result(
                 state.with { $0.isSyncing = false },
-                effect: .cancel(id: "sync-title")
+                effect: .cancel(id: AppFlowEffectIdentifier.syncTitle)
             )
             
         case .saveSettings:
             return .result(
                 state,
-                effect: .throttle(id: "save-settings", for: 3.0) {
+                effect: .throttle(id: AppFlowEffectIdentifier.saveSettings, for: 3.0) {
                     print("Saving settings to disk...")
                     return nil
                 }

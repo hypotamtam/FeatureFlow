@@ -4,6 +4,20 @@
 
 - [ ] **Evaluate `SwiftAsyncAlgorithms`**: Investigate using `AsyncBroadcaster` or other primitives from the [Swift Async Algorithms](https://github.com/apple/swift-async-algorithms) library to replace the current manual `AsyncStream` continuation management in `Store.swift`. This could provide a more standardized "multicast" behavior for state updates.
 
+## Core Features & Operators
+
+- [ ] **Implement `ifLet` Operator**: Add a higher-order flow operator to handle optional child features.
+  * **Goal**: Simplify the composition of features that only exist "sometimes" (e.g., modals, sheets).
+  * **Key Benefit**: Automatically handles "presence" checks and, crucially, provides **automatic effect cancellation** when the child state becomes `nil`, ensuring no background tasks leak after a feature is dismissed.
+
+- [ ] **Implement `Flow.forEach` Operator**: Add support for dynamic collections of features.
+  * **Goal**: Transform a single-item `Flow` into a collection-aware `Flow` that operates on an `IdentifiedArray` or similar collection.
+  * **Key Benefit**: Removes the boilerplate of manual index management and ID-based action routing. Like `ifLet`, it should handle the lifecycle of child effects, ensuring that removing an item from the list cancels its specific background tasks.
+
+- [ ] **Implement `Flow.log()` Higher-Order Flow**: Provide built-in diagnostics for state changes and actions.
+  * **Goal**: Add a `.log()` or `.debug()` operator that can be attached to any flow to print a formatted trace to the console.
+  * **Key Benefit**: Dramatically improves the developer experience by allowing real-time inspection of state mutations and side-effect triggers without adding manual print statements.
+
 ## Testing Architecture
 
 - [ ] **TestStore Isolation (`@MainActor class` vs `actor`)**: 
