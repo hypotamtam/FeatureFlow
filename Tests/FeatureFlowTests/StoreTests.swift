@@ -25,7 +25,7 @@ struct StoreTests {
         )
         // Waiting for childStore.stateStream makes sure both stores are updated as
         // the child state is updated after the parent one.
-        var iterator = childStore.stateStream.dropFirst().makeAsyncIterator()
+        let iterator = childStore.stateStream.dropFirst()
         
         #expect(childStore.state.value == 0)
         
@@ -62,7 +62,7 @@ struct StoreTests {
         )
         // Waiting for childStore.stateStream makes sure both stores are updated as
         // the child state is updated after the parent one.
-        var iterator = childStore.stateStream.dropFirst().makeAsyncIterator()
+        let iterator = childStore.stateStream.dropFirst()
         
         #expect(childStore.state.value == 0)
         
@@ -73,5 +73,60 @@ struct StoreTests {
         
         #expect(parentStore.state.child.value == 1)
         #expect(childStore.state.value == 1)
+    }
+
+    @Test("All tasks are cancelled on Store deinit")
+    func storeDeinitCancelsAllTasks() async throws {
+        let (identifiedStream, identifiedContinuation) = AsyncStream.makeStream(of: Void.self)
+        let (anonymousStream, anonymousContinuation) = AsyncStream.makeStream(of: Void.self)
+        
+        var store: Store<TestState, TestAction>? = Store(
+            initialState: TestState(),
+            flow: Flow { state, action in
+                switch action {
+                case .increment:
+                    return .result(
+                        state,
+                        effects: [
+                            Effect(id: "identified") {
+                                do {
+                                    try await Task.sleep(nanoseconds: 1_000_000_000) // 1s
+                                    return nil
+                                } catch {
+                                    identifiedContinuation.yield(())
+                                    return nil as TestAction?
+                                }
+                            },
+                            Effect {
+                                do {
+                                    try await Task.sleep(nanoseconds: 1_000_000_000) // 1s
+                                    return nil
+                                } catch {
+                                    anonymousContinuation.yield(())
+                                    return nil as TestAction?
+                                }
+                            }
+                        ]
+                    )
+                default:
+                    return .result(state)
+                }
+            }
+        )
+        
+        store?.send(.increment(1))
+        
+        // Brief sleep to ensure tasks have started
+        try await Task.sleep(nanoseconds: 100_000_000)
+        
+        // Deinit the store
+        store = nil
+        
+        // Verify cancellation signals were received with a timeout
+        let identifiedCancelled = await identifiedStream.next() != nil
+        let anonymousCancelled = await anonymousStream.next() != nil
+        
+        #expect(identifiedCancelled, "Identified task should have been cancelled")
+        #expect(anonymousCancelled, "Anonymous task should have been cancelled")
     }
 }

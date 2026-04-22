@@ -247,7 +247,7 @@ struct EffectTests {
         }
         
         let store = Store(initialState: TestState(), flow: flow)
-        var stateIterator = store.stateStream.dropFirst().makeAsyncIterator()
+        let stateIterator = store.stateStream.dropFirst()
         
         // Task 1: Will be cancelled
         store.send(.asyncIncrement(id: "rapid", policy: .cancelPrevious, value: 10))
