@@ -80,7 +80,7 @@ struct CasePathTests {
             state: \RootState.child,
             action: RootAction.Cases.child
         )
-        var iterator = childStore.stateStream.dropFirst().makeAsyncIterator()
+        let iterator = childStore.stateStream.dropFirst()
         
         childStore.send(.increment)
         

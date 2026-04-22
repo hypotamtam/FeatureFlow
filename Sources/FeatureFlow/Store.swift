@@ -45,8 +45,12 @@ public final class Store<State: FeatureFlow.State, Action: Sendable>: @unchecked
     private let flow: Flow<State, Action>?
     private let onAction: (@Sendable (Action) -> Void)?
     
-    private var tasks: [AnyHashable: (task: Task<Void, Never>, id: UUID)] = [:]
-    
+    private final class TaskBox: @unchecked Sendable {
+        var task: Task<Void, Never>?
+    }
+
+    private var tasks: [AnyHashable: (task: TaskBox, id: UUID)] = [:]
+
     /// Initializes a store with an initial state and a flow.
     ///
     /// - Parameters:
@@ -80,6 +84,11 @@ public final class Store<State: FeatureFlow.State, Action: Sendable>: @unchecked
     
     deinit {
         streamTask?.cancel()
+        
+        for taskWrapper in tasks.values {
+            taskWrapper.task.task?.cancel()
+        }
+        tasks.removeAll()
     }
     
     private func removeContinuation(id: UUID) {
@@ -132,38 +141,40 @@ public final class Store<State: FeatureFlow.State, Action: Sendable>: @unchecked
     }
 
     private func execute(_ effect: Effect<Action>) {
+        let trackingKey: AnyHashable = effect.id ?? AnyHashable(UUID())
+        let executionID = UUID()
+
         lock.lock()
         if let id = effect.id {
             if effect.policy == .cancelPrevious {
-                tasks[id]?.task.cancel()
+                tasks[id]?.task.task?.cancel()
             } else if effect.policy == .runIfMissing, tasks[id] != nil {
                 lock.unlock()
                 return
             }
         }
+        
+        let box = TaskBox()
+        tasks[trackingKey] = (box, executionID)
 
-        let executionID = UUID()
-        let task = Task { [weak self] in
+        let task = Task { [weak self, trackingKey] in
+            guard !Task.isCancelled else { return }
             let nextAction = await effect.operation()
             
             guard let self = self else { return }
 
-            if let id = effect.id {
-                self.lock.lock()
-                if self.tasks[id]?.id == executionID {
-                    self.tasks[id] = nil
-                }
-                self.lock.unlock()
+            self.lock.lock()
+            if self.tasks[trackingKey]?.id == executionID {
+                self.tasks[trackingKey] = nil
             }
+            self.lock.unlock()
 
             if !Task.isCancelled, let nextAction = nextAction {
                 self.send(nextAction)
             }
         }
-
-        if let id = effect.id {
-            tasks[id] = (task, executionID)
-        }
+        
+        box.task = task
         lock.unlock()
     }
     
