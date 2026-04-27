@@ -146,6 +146,22 @@ public final class ViewStore<State: FeatureFlow.State, Action: Sendable>: Observ
         return scopedStore
     }
 
+    /// Creates a child view store scoped to an optional domain.
+    ///
+    /// - Parameters:
+    ///   - childKeyPath: A key path extracting the optional child state from the parent state.
+    ///   - fromChildAction: A closure wrapping a child action into a parent action.
+    /// - Returns: A new `ViewStore` operating on the child domain, or `nil` if the child state is currently `nil`.
+    public func scope<ChildState: FeatureFlow.State, ChildAction: Sendable>(
+        state childKeyPath: KeyPath<State, ChildState?> & Sendable,
+        action fromChildAction: @escaping @Sendable (ChildAction) -> Action
+    ) -> ViewStore<ChildState, ChildAction>? {
+        guard let childStore = store.scope(state: childKeyPath, action: fromChildAction) else {
+            return nil
+        }
+        return ViewStore<ChildState, ChildAction>(store: childStore)
+    }
+
     /// Creates a standard SwiftUI `Binding` for a property in the state.
     ///
     /// The setter of this binding dispatches an action back to the store.

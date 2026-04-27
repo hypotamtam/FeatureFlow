@@ -3,6 +3,15 @@ import Testing
 
 @Suite("Flow Tests")
 struct FlowTests {
+    
+    struct OptionalParentState: State {
+        var child: TestState?
+    }
+
+    enum OptionalParentAction: Action {
+        case childAction(TestAction)
+        case removeChild
+    }
 
     @Test("FlowBuilder executes multiple flows in sequence")
     func flowBuilder_BuildBlock() {
@@ -66,5 +75,54 @@ struct FlowTests {
     func flowPullback() {
         let result = combinedTestFlow.run(TestState(), .childAction(.increment))
         #expect(result.state.child.value == 1)
+    }
+
+    @Test("ifLet routes actions when state is present")
+    func ifLetRoutesActions() {
+        let parentFlow = Flow<OptionalParentState, OptionalParentAction> { state, action in
+            switch action {
+            case .removeChild:
+                return .result(state.with { $0.child = nil })
+            default:
+                return .result(state)
+            }
+        }
+        
+        let childFlow = Flow<TestState, TestAction> { state, action in
+            switch action {
+            case .increment(let amount):
+                return .result(state.with { $0.count += amount })
+            default:
+                return .result(state)
+            }
+        }
+        
+        let combinedFlow = Flow<OptionalParentState, OptionalParentAction> {
+            parentFlow
+            childFlow.ifLet(
+                state: \.child,
+                action: CasePath(
+                    embed: OptionalParentAction.childAction,
+                    extract: { action in
+                        guard case let .childAction(child) = action else { return nil }
+                        return child
+                    }
+                )
+            )
+        }
+        
+        // Test when child is present
+        let stateWithChild = OptionalParentState(child: TestState(count: 0))
+        let result1 = combinedFlow.run(stateWithChild, .childAction(.increment(5)))
+        #expect(result1.state.child?.count == 5)
+        
+        // Test when child is nil (action is ignored)
+        let stateWithoutChild = OptionalParentState(child: nil)
+        let result2 = combinedFlow.run(stateWithoutChild, .childAction(.increment(5)))
+        #expect(result2.state.child == nil)
+        
+        // Test removing child
+        let result3 = combinedFlow.run(stateWithChild, .removeChild)
+        #expect(result3.state.child == nil)
     }
 }

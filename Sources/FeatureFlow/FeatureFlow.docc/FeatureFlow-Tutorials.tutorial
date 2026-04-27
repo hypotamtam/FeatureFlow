@@ -8,5 +8,6 @@
         
         @TutorialReference(tutorial: "doc:BuildingCounter")
         @TutorialReference(tutorial: "doc:BuildingSearch")
+        @TutorialReference(tutorial: "doc:Composition")
     }
 }

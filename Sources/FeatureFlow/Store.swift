@@ -219,6 +219,31 @@ public final class Store<State: FeatureFlow.State, Action: Sendable>: @unchecked
             stream: mappedStream
         )
     }
+
+    /// Creates a child store scoped to an optional domain.
+    ///
+    /// - Parameters:
+    ///   - childKeyPath: A key path extracting the optional child state from the parent state.
+    ///   - fromChildAction: A closure wrapping a child action into a parent action.
+    /// - Returns: A new `Store` operating on the child domain, or `nil` if the child state is currently `nil`.
+    public func scope<ChildState: FeatureFlow.State, ChildAction: Sendable>(
+        state childKeyPath: KeyPath<State, ChildState?> & Sendable,
+        action fromChildAction: @escaping @Sendable (ChildAction) -> Action
+    ) -> Store<ChildState, ChildAction>? {
+        guard let initialState = state[keyPath: childKeyPath] else { return nil }
+        
+        let mappedStream = self.stateStream.compactMap { state in
+            state[keyPath: childKeyPath]
+        }
+        
+        return Store<ChildState, ChildAction>(
+            initialState: initialState,
+            onAction: { [weak self] childAction in
+                self?.send(fromChildAction(childAction))
+            },
+            stream: mappedStream
+        )
+    }
 }
 
 /// A thread-safe recursive lock wrapper.

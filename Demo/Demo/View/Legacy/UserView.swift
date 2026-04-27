@@ -11,16 +11,40 @@ struct UserView: View {
                     Text(store.state.name)
                         .font(.headline)
                     Spacer()
+                    Button("Edit") {
+                        store.send(.showEditor)
+                    }
+                    .buttonStyle(.borderless)
+
                     Button("Fetch") {
                         store.send(.fetchRequest)
                     }
+                    .buttonStyle(.borderless)
                     .disabled(store.state.isLoading)
                 }
-                
+
                 if let error = store.state.error {
                     Text(error)
                         .font(.caption)
                         .foregroundColor(.red)
+                }
+            }
+            .sheet(
+                isPresented: Binding(
+                    get: { store.state.editProfile != nil },
+                    set: { isPresented in
+                        if !isPresented {
+                            store.send(.dismissEditor)
+                        }
+                    }
+                )
+            ) {
+                LegacyIfLetStore(
+                    store: store,
+                    state: \.editProfile,
+                    action: UserAction.Cases.editProfile
+                ) { childStore in
+                    LegacyEditProfileView(store: childStore)
                 }
             }
         }

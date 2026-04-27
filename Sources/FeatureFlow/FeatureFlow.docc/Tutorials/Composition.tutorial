@@ -1,0 +1,61 @@
+@Tutorial(time: 10) {
+    @Intro(title: "Composing Features") {
+        Learn how to build complex applications by composing small, isolated flows into a parent flow using `pullback` and `ifLet`.
+    }
+    
+    @Section(title: "Define the Parent Domain") {
+        @ContentAndMedia {
+            To compose features together, the parent domain must contain the state and actions of its children.
+        }
+        
+        @Steps {
+            @Step {
+                We define an `AppState` that holds a persistent `counter` and an optional `editor`. We also add enum cases in `AppAction` to wrap the child actions using `@CasePathable`.
+                
+                @Code(name: "AppDomain.swift", file: "Composition-Step1.swift")
+            }
+        }
+    }
+    
+    @Section(title: "Composing with Pullback") {
+        @ContentAndMedia {
+            For persistent child state (like a counter or settings screen), we use the `pullback` operator.
+        }
+        
+        @Steps {
+            @Step {
+                Inside the `Flow` builder, we call `.pullback` on the child flow. We provide the key path to the child state (`\.counter`) and the case path to the child action (`AppAction.Cases.counterAction`).
+                
+                @Code(name: "AppDomain.swift", file: "Composition-Step2.swift")
+            }
+        }
+    }
+    
+    @Section(title: "Composing Optional State with IfLet") {
+        @ContentAndMedia {
+            For transient state, like a modal profile editor, the child state is optional (`EditProfileState?`). You cannot use standard `pullback` here. Instead, you use the `ifLet` operator.
+        }
+        
+        @Steps {
+            @Step {
+                We add `editProfileFlow.ifLet`. This operator automatically unwraps the optional state, runs the child logic, and safely ignores actions if the state is currently `nil`. It also cancels any running child effects when the state is set to `nil`!
+                
+                @Code(name: "AppDomain.swift", file: "Composition-Step3.swift")
+            }
+        }
+    }
+    
+    @Section(title: "Connect to SwiftUI") {
+        @ContentAndMedia {
+            Finally, we need to pass these isolated domains down to their respective SwiftUI child views without giving them access to the entire `AppState`.
+        }
+        
+        @Steps {
+            @Step {
+                Use `store.scope` for persistent child views, and `IfLetStore` to safely present optional, transient child views inside presentation modifiers like `.sheet`.
+                
+                @Code(name: "AppView.swift", file: "Composition-Step4.swift")
+            }
+        }
+    }
+}

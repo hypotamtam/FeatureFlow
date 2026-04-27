@@ -95,9 +95,46 @@ extension Flow.Result {
     static func result(_ state: State, effects: [Effect<Action>]) -> Self {
         .init(state: state, effects: effects)
     }
+
 }
 
 public extension Flow {
+    /// Returns a new flow that operates on a parent domain, but only executes when the child state is non-nil.
+    ///
+    /// - Parameters:
+    ///   - toChildState: A writable key path to an optional child state in the parent state.
+    ///   - toChildAction: A case path for embedding/extracting child actions from parent actions.
+    /// - Returns: A flow that operates on the parent domain.
+    func ifLet<ParentState, ParentAction>(
+        state toChildState: WritableKeyPath<ParentState, State?> & Sendable,
+        action toChildAction: CasePath<ParentAction, Action>
+    ) -> Flow<ParentState, ParentAction> {
+        Flow<ParentState, ParentAction> { parentState, parentAction in
+            // 1. Try to extract the child action.
+            guard let childAction = toChildAction.extract(parentAction) else {
+                return .result(parentState)
+            }
+
+            // 2. Try to extract the child state.
+            guard let childState = parentState[keyPath: toChildState] else {
+                // If child state is nil, we ignore the action.
+                return .result(parentState)
+            }
+
+            // 3. Run the child flow.
+            let result = self.run(childState, childAction)
+
+            // 4. Update the parent state.
+            var newParentState = parentState
+            newParentState[keyPath: toChildState] = result.state
+
+            return .result(
+                newParentState,
+                effects: result.effects.map { $0.map(transform: toChildAction.embed) }
+            )
+        }
+    }
+
     /// Transforms a child `Flow` into a parent `Flow` domain using a `CasePath`.
     ///
     /// - Parameters:
@@ -115,7 +152,7 @@ public extension Flow {
         )
     }
 
-    /// Transforms a child `Flow` into a parent `Flow` domain.
+    /// Transforms a child `Flow` into a parent `Flow domain.
     ///
     /// This allows you to compose smaller, isolated features into a larger, complex application.
     ///

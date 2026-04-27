@@ -102,7 +102,72 @@ let appFlow = Flow<AppState, AppAction> {
 
 ---
 
-## 4. Scoping the ViewStore
+## 4. Optional State with `ifLet`
+
+In real applications, you frequently deal with "transient" features—like a modal profile editor or a drill-down detail view. These features only exist temporarily. Instead of keeping their state permanently in memory, you represent them as optional properties in your parent state.
+
+```swift
+struct AppState: State {
+    var editProfile: EditProfileState? = nil
+}
+
+@CasePathable
+enum AppAction: Action {
+    case showEditor
+    case dismissEditor
+    case editProfile(EditProfileAction)
+}
+```
+
+If you try to use standard `.pullback` on an optional state, the compiler will complain because `pullback` requires a non-optional `WritableKeyPath`. 
+
+Instead, you use the `ifLet` operator. `ifLet` does all the heavy lifting of safely unwrapping the optional state, routing the child actions, and embedding the child effects back into the parent domain.
+
+```swift
+let appFlow = Flow<AppState, AppAction> {
+    Flow { state, action in
+        switch action {
+        case .showEditor:
+            return .result(state.with { 
+                $0.editProfile = EditProfileState() 
+            })
+        case .dismissEditor:
+            return .result(state.with { 
+                $0.editProfile = nil 
+            })
+        default:
+            return .result(state)
+        }
+    }
+    
+    // Automatically executes the child flow only when `editProfile` is not nil.
+    editProfileFlow.ifLet(
+        state: \.editProfile, 
+        action: AppAction.Cases.editProfile
+    )
+}
+```
+
+### Safety and Cancellation
+A huge benefit of `ifLet` is that it guarantees safety. If an `.editProfile` action arrives while `state.editProfile` is `nil` (perhaps due to an animation delay), the action is safely ignored. 
+
+In the UI, you present this optional state using `IfLetStore`, which safely unwraps the state and ensures it doesn't crash during dismissal animations.
+
+```swift
+.sheet(isPresented: /* ... */) {
+    IfLetStore(
+        store: store, 
+        state: \.editProfile, 
+        action: AppAction.Cases.editProfile
+    ) { childStore in
+        EditProfileView(store: childStore)
+    }
+}
+```
+
+---
+
+## 5. Scoping the ViewStore
 
 When building your SwiftUI UI, you want to pass only the necessary data to child views. If you have an `ObservableViewStore<AppState, AppAction>`, you can `.scope` it down using the same CasePaths.
 
