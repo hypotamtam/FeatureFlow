@@ -18,7 +18,7 @@ nonisolated let editProfileFlow = Flow<EditProfileState, EditProfileAction> { st
         let draftName = state.draftName
         return .result(
             state.with { $0.isSaving = true },
-            effect: Effect(id: "save-profile") {
+            effect: Effect(id: UserEffectId.saveProfile) {
                 // Simulate network latency
                 try? await Task.sleep(nanoseconds: 1_000_000_000)
                 

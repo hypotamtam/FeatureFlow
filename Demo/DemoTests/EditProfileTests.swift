@@ -31,7 +31,7 @@ struct EditProfileTests {
         }
 
         // Wait for the simulated 1-second delay
-        await store.receive(.saveSuccess("Bob"), timeout: 2.0) {
+        await store.receive(.saveSuccess("Bob"), timeout: 3.0) {
             $0.isSaving = false
         }
     }

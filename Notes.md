@@ -6,6 +6,16 @@
 
 ## Core Features & Operators
 
+- [ ] **`ifLet` Automatic Effect Cancellation**:
+  Currently, `ifLet` only routes child actions. If the parent flow sets the child state to `nil`, any in-flight effects started by the child flow continue to run in the background.
+  
+  **Options to handle this later:**
+  1. **Option 1: State Transition Tracking**: Modify the `ifLet` operator to wrap the entire execution, compare the state before and after, and automatically emit `.cancel` if it transitioned from non-nil to nil.
+  2. **Option 2: Namespaced Side Effects**: Introduce a way for effects to be tagged with a path/namespace. The `Store` could then automatically scan and kill anything tagged with a keypath that just became `nil`.
+  3. **Option 4: The `ifLet` Builder**: A specialized `Flow` initializer that specifically watches for the "disappearance" of the child state.
+  
+  *Current status:* Using **Option 3 (Manual Cancellation)** where the parent flow is responsible for emitting explicit `.cancel(id:)` effects when dismissing a child feature.
+
 - [ ] **Implement `Flow.forEach` Operator**: Add support for dynamic collections of features.
   * **Goal**: Transform a single-item `Flow` into a collection-aware `Flow` that operates on an `IdentifiedArray` or similar collection.
   * **Key Benefit**: Removes the boilerplate of manual index management and ID-based action routing. Like `ifLet`, it should handle the lifecycle of child effects, ensuring that removing an item from the list cancels its specific background tasks.

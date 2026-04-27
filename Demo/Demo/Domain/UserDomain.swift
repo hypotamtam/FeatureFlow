@@ -28,6 +28,10 @@ enum UserAction: Action, Equatable {
     case editProfile(EditProfileAction)
 }
 
+enum UserEffectId {
+    case saveProfile
+}
+
 fileprivate let internalUserFlow = Flow<UserState, UserAction> { state, action in
     switch action {
     case .fetchRequest:
@@ -56,15 +60,21 @@ fileprivate let internalUserFlow = Flow<UserState, UserAction> { state, action i
         })
 
     case .dismissEditor:
-        return .result(state.with { $0.editProfile = nil })
+        return .result(
+            state.with { $0.editProfile = nil },
+            effect: .cancel(id: UserEffectId.saveProfile)
+        )
 
     case .editProfile(.saveSuccess(let newName)):
         // We still need to coordinate the success back to the parent name
         // but the rest is handled by ifLet
-        return .result(state.with {
-            $0.name = newName
-            $0.editProfile = nil
-        })
+        return .result(
+            state.with {
+                $0.name = newName
+                $0.editProfile = nil
+            },
+            effect: .cancel(id: UserEffectId.saveProfile)
+        )
 
     case .editProfile:
         return .result(state)

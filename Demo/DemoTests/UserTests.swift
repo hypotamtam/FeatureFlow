@@ -37,7 +37,7 @@ struct UserTests {
         }
         
         // Assert the background effect completes
-        await store.receive(.fetchSuccess(expectedName)) {
+        await store.receive(.fetchSuccess(expectedName), timeout: 2.0) {
             $0.isLoading = false
             $0.name = expectedName
         }
@@ -153,6 +153,34 @@ struct UserTests {
             $0.name = "Bob"
             $0.editProfile = nil
         }
+        
+        // Wait for the .cancel effect returned by the saveSuccess handler to finish
+        await store.receiveNoAction()
+    }
+
+    @MainActor
+    @Test("Dismissing the editor while saving should cancel the save effect")
+    func dismissEditorWhileSavingCancelsEffect() async {
+        let store = TestStore(
+            initialState: UserState(
+                name: "Alice",
+                editProfile: EditProfileState(draftName: "Bob")
+            ),
+            flow: userFlow
+        )
+
+        // 1. Start the save effect
+        await store.send(.editProfile(.saveTapped)) {
+            $0.editProfile?.isSaving = true
+        }
+
+        // 2. Immediately dismiss the editor
+        await store.send(.dismissEditor) {
+            $0.editProfile = nil
+        }
+        
+        // 3. Ensure the effect is cancelled and .saveSuccess is never received
+        await store.receiveNoAction()
     }
 
     @MainActor

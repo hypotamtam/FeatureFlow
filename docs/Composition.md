@@ -151,6 +151,8 @@ let appFlow = Flow<AppState, AppAction> {
 ### Safety and Cancellation
 A huge benefit of `ifLet` is that it guarantees safety. If an `.editProfile` action arrives while `state.editProfile` is `nil` (perhaps due to an animation delay), the action is safely ignored. 
 
+**Note on Cancellation:** When setting the child state to `nil` (e.g., dismissing a modal), you are responsible for manually cancelling any in-flight effects belonging to that child by returning an `Effect.cancel(id:)` in your parent flow.
+
 In the UI, you present this optional state using `IfLetStore`, which safely unwraps the state and ensures it doesn't crash during dismissal animations.
 
 ```swift
