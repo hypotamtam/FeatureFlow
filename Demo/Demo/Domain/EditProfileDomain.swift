@@ -15,6 +15,7 @@ nonisolated let editProfileFlow = Flow<EditProfileState, EditProfileAction> { st
         return .result(state.with { $0.draftName = name })
         
     case .saveTapped:
+        let draftName = state.draftName
         return .result(
             state.with { $0.isSaving = true },
             effect: Effect(id: "save-profile") {
@@ -23,7 +24,7 @@ nonisolated let editProfileFlow = Flow<EditProfileState, EditProfileAction> { st
                 
                 // In a real app, we'd call a service here.
                 // For the demo, we just return success with the draft name.
-                return .saveSuccess(state.draftName)
+                return .saveSuccess(draftName)
             }
         )
         
