@@ -152,7 +152,7 @@ public extension Flow {
         )
     }
 
-    /// Transforms a child `Flow` into a parent `Flow domain.
+    /// Transforms a child Flow into a parent Flow domain.
     ///
     /// This allows you to compose smaller, isolated features into a larger, complex application.
     ///
