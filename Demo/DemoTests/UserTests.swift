@@ -37,7 +37,7 @@ struct UserTests {
         }
         
         // Assert the background effect completes
-        await store.receive(.fetchSuccess(expectedName)) {
+        await store.receive(.fetchSuccess(expectedName), timeout: 2.0) {
             $0.isLoading = false
             $0.name = expectedName
         }
@@ -82,5 +82,124 @@ struct UserTests {
             $0.isLoading = false
             $0.name = expectedName
         }
+    }
+
+    // MARK: - Profile Editor TDD Tests
+
+    @MainActor
+    @Test("Opening the editor should initialize the edit state")
+    func openEditor() async {
+        let store = TestStore(initialState: UserState(name: "Alice"), flow: userFlow)
+
+        await store.send(.showEditor) {
+            $0.editProfile = EditProfileState(draftName: "Alice")
+        }
+    }
+
+    @MainActor
+    @Test("Dismissing the editor should clear the edit state")
+    func dismissEditor() async {
+        let store = TestStore(
+            initialState: UserState(
+                name: "Alice",
+                editProfile: EditProfileState(draftName: "Alice")
+            ),
+            flow: userFlow
+        )
+
+        await store.send(.dismissEditor) {
+            $0.editProfile = nil
+        }
+        
+        // Wait for the .cancel effect to finish
+        await store.receiveNoAction()
+    }
+
+    @MainActor
+    @Test("Editing the draft name should only update the draft")
+    func updateDraftName() async {
+        let store = TestStore(
+            initialState: UserState(
+                name: "Alice",
+                editProfile: EditProfileState(draftName: "Alice")
+            ),
+            flow: userFlow
+        )
+
+        await store.send(.editProfile(.updateName("Bob"))) {
+            $0.editProfile?.draftName = "Bob"
+        }
+        
+        #expect(store.state.name == "Alice")
+    }
+
+    @MainActor
+    @Test("A successful save should update the user name and dismiss the editor")
+    func saveSuccess() async {
+        let store = TestStore(
+            initialState: UserState(
+                name: "Alice",
+                editProfile: EditProfileState(draftName: "Bob")
+            ),
+            flow: userFlow
+        )
+
+        await store.send(.editProfile(.saveTapped)) {
+            $0.editProfile?.isSaving = true
+        }
+
+        // Increase timeout to 2 seconds to accommodate the 1-second sleep
+        await store.receive(.editProfile(.saveSuccess("Bob")), timeout: 2.0) {
+            $0.name = "Bob"
+            $0.editProfile = nil
+        }
+        
+        // Wait for the .cancel effect returned by the saveSuccess handler to finish
+        await store.receiveNoAction()
+    }
+
+    @MainActor
+    @Test("Dismissing the editor while saving should cancel the save effect")
+    func dismissEditorWhileSavingCancelsEffect() async {
+        let store = TestStore(
+            initialState: UserState(
+                name: "Alice",
+                editProfile: EditProfileState(draftName: "Bob")
+            ),
+            flow: userFlow
+        )
+
+        // 1. Start the save effect
+        await store.send(.editProfile(.saveTapped)) {
+            $0.editProfile?.isSaving = true
+        }
+
+        // 2. Immediately dismiss the editor
+        await store.send(.dismissEditor) {
+            $0.editProfile = nil
+        }
+        
+        // 3. Ensure the effect is cancelled and .saveSuccess is never received
+        await store.receiveNoAction()
+    }
+
+    @MainActor
+    @Test("A failed save should stop the loading state but keep the editor open")
+    func saveFailure() async {
+        let store = TestStore(
+            initialState: UserState(
+                name: "Alice",
+                editProfile: EditProfileState(draftName: "Bob", isSaving: true)
+            ),
+            flow: userFlow
+        )
+
+        await store.send(.editProfile(.saveFailure("Network Error"))) {
+            $0.editProfile?.isSaving = false
+            // Note: We might want to add an error message to EditProfileState later
+        }
+        
+        #expect(store.state.editProfile != nil)
+        #expect(store.state.name == "Alice")
     }
 }

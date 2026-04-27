@@ -6,9 +6,15 @@
 
 ## Core Features & Operators
 
-- [ ] **Implement `ifLet` Operator**: Add a higher-order flow operator to handle optional child features.
-  * **Goal**: Simplify the composition of features that only exist "sometimes" (e.g., modals, sheets).
-  * **Key Benefit**: Automatically handles "presence" checks and, crucially, provides **automatic effect cancellation** when the child state becomes `nil`, ensuring no background tasks leak after a feature is dismissed.
+- [ ] **`ifLet` Automatic Effect Cancellation**:
+  Currently, `ifLet` only routes child actions. If the parent flow sets the child state to `nil`, any in-flight effects started by the child flow continue to run in the background.
+  
+  **Options to handle this later:**
+  1. **Option 1: State Transition Tracking**: Modify the `ifLet` operator to wrap the entire execution, compare the state before and after, and automatically emit `.cancel` if it transitioned from non-nil to nil.
+  2. **Option 2: Namespaced Side Effects**: Introduce a way for effects to be tagged with a path/namespace. The `Store` could then automatically scan and kill anything tagged with a keypath that just became `nil`.
+  3. **Option 4: The `ifLet` Builder**: A specialized `Flow` initializer that specifically watches for the "disappearance" of the child state.
+  
+  *Current status:* Using **Option 3 (Manual Cancellation)** where the parent flow is responsible for emitting explicit `.cancel(id:)` effects when dismissing a child feature.
 
 - [ ] **Implement `Flow.forEach` Operator**: Add support for dynamic collections of features.
   * **Goal**: Transform a single-item `Flow` into a collection-aware `Flow` that operates on an `IdentifiedArray` or similar collection.
@@ -17,6 +23,35 @@
 - [ ] **Implement `Flow.log()` Higher-Order Flow**: Provide built-in diagnostics for state changes and actions.
   * **Goal**: Add a `.log()` or `.debug()` operator that can be attached to any flow to print a formatted trace to the console.
   * **Key Benefit**: Dramatically improves the developer experience by allowing real-time inspection of state mutations and side-effect triggers without adding manual print statements.
+
+## UI / Presentation
+
+- [ ] **State-Driven Navigation Modifiers (vs `IfLetStore`)**:
+  Currently, to present optional state (like sheets or popovers), we rely on wrapping the content inside an `IfLetStore` within a native SwiftUI presentation modifier.
+  
+  ```swift
+  .sheet(isPresented: ...) {
+      IfLetStore(store: store, state: \.child, action: ParentAction.child) { childStore in
+          ChildView(store: childStore)
+      }
+  }
+  ```
+  
+  **Proposed Improvement:** Create custom SwiftUI View Modifiers that accept the `store`, `state` keypath, and `action` case path directly. This hides the `IfLetStore` caching logic completely and provides a much cleaner, more native-feeling call site.
+  
+  ```swift
+  .sheet(
+      store: store, 
+      state: \.child, 
+      action: ParentAction.child
+  ) { childStore in
+      ChildView(store: childStore)
+  }
+  ```
+  
+  *Considerations for implementation:*
+  *   We would need to build a suite of modifiers (`.sheet`, `.popover`, `.fullScreenCover`, `.navigationDestination`) to maintain parity with SwiftUI.
+  *   The modifiers must gracefully handle interactive dismissal by the user (e.g., swiping down), meaning the framework must know exactly what action to dispatch to `nil` out the state. This might require the signature to also include an explicit `onDismiss: Action` parameter, slightly complicating the API.
 
 ## Testing Architecture
 
