@@ -158,13 +158,13 @@ Add FeatureFlow to your `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/thomascassany/FeatureFlow.git", from: "1.0.0")
+    .package(url: "https://github.com/hypotamtam/FeatureFlow.git", from: "0.1.0")
 ]
 ```
 Or in Xcode:
 
 1. Go to **File > Add Package Dependencies...**
-2. Enter the repository URL: `https://github.com/thomascassany/FeatureFlow.git`
+2. Enter the repository URL: `https://github.com/hypotamtam/FeatureFlow.git`
 3. Select your desired version rules and add the package to your target.
 
 
